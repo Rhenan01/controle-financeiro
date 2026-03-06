@@ -4,8 +4,8 @@ import { useState, useEffect, useMemo } from "react"
 import { supabase } from "@/lib/supabase"
 import { useFinanceStore } from "@/store/financeStore"
 
-import TransactionsTable from "../../components/tables/TransactionsTable"
-import NewTransactionModal from "../../components/modals/NewTransactionModal"
+import TransactionsTable from "../../../components/tables/TransactionsTable"
+import NewTransactionModal from "../../../components/modals/NewTransactionModal"
 
 export default function Lancamentos() {
 
@@ -20,31 +20,20 @@ export default function Lancamentos() {
 
     async function init() {
 
-      let { data: authData } = await supabase.auth.getUser()
-      let user = authData.user
+      const { data: authData } = await supabase.auth.getUser()
+      const user = authData.user
 
-      if (!user) {
+      if (!user) return
 
-        const login = await supabase.auth.signInWithPassword({
-          email: "teste@teste.com",
-          password: "12345678"
-        })
-
-        user = login.data.user
-
-      }
-
-      if (user) {
-        await loadTransactions(user.id)
-      }
+      await loadTransactions(user.id)
 
       const { data: salaryData } = await supabase
         .from("salary_days")
         .select("payment_date")
         .order("payment_date")
 
-      if(salaryData){
-        setSalaryDays(salaryData.map(d=>d.payment_date))
+      if (salaryData) {
+        setSalaryDays(salaryData.map(d => d.payment_date))
       }
 
     }

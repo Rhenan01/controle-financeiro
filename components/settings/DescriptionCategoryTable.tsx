@@ -2,7 +2,7 @@
 
 import { useState,useEffect } from "react"
 import { supabase } from "@/lib/supabase"
-
+import { Pencil, Trash2 } from "lucide-react"
 export default function DescriptionCategoryTable(){
 
 const [data,setData] = useState<any[]>([])
@@ -442,25 +442,33 @@ onChange={()=>toggleSelect(item.id)}
 {item.category}
 </td>
 
-<td className="px-4 py-3 text-right space-x-3">
+<td className="px-4 py-3 text-right">
 
-<button
-onClick={()=>openEdit(item)}
-className="text-blue-600 hover:underline text-sm"
->
-editar
-</button>
+  <div className="flex justify-end gap-2">
 
-<button
-onClick={()=>supabase
-.from("description_categories")
-.delete()
-.eq("id",item.id)
-.then(loadData)}
-className="text-red-500 hover:underline text-sm"
->
-excluir
-</button>
+    <button
+      onClick={() => openEdit(item)}
+      className="p-1.5 rounded-md hover:bg-blue-100 text-blue-600 transition"
+      title="Editar"
+    >
+      <Pencil size={16} />
+    </button>
+
+    <button
+      onClick={() =>
+        supabase
+          .from("description_categories")
+          .delete()
+          .eq("id", item.id)
+          .then(loadData)
+      }
+      className="p-1.5 rounded-md hover:bg-red-100 text-red-600 transition"
+      title="Excluir"
+    >
+      <Trash2 size={16} />
+    </button>
+
+  </div>
 
 </td>
 

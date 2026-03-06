@@ -77,44 +77,7 @@ export default function CreditCardsStatus({financialRange}:Props){
     loadInvoices()
 
   },[financialRange])
-  function calculateAvailableLimit(cardName:string){
 
-    const card = cards.find(c => c.name === cardName)
-
-    if(!card) return 0
-
-    const totalLimit = Number(card.limit_value)
-
-    let used = 0
-
-    transactions.forEach(t=>{
-
-      if(t.card !== cardName) return
-
-      if(t.status === "PAGO") return
-
-      const isCurrentMonth =
-        t.date >= financialRange.start &&
-        t.date <= financialRange.end
-
-      const hasInstallment =
-        t.installment && t.installment !== ""
-
-      if(isCurrentMonth){
-
-        used += t.value
-
-      }else if(hasInstallment){
-
-        used += t.value
-
-      }
-
-    })
-
-    return totalLimit - used
-
-  }
   async function togglePaid(cardId:string){
 
     const {data:userData} = await supabase.auth.getUser()
@@ -297,7 +260,7 @@ export default function CreditCardsStatus({financialRange}:Props){
               </div>
 
               <div className="text-xs text-gray-400">
-                limite {money(calculateAvailableLimit(card.name))}
+                limite {money(card.limit_value)}
               </div>
 
               <div className="mt-2">

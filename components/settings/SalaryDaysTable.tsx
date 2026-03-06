@@ -2,7 +2,7 @@
 
 import { useState,useEffect } from "react"
 import { supabase } from "@/lib/supabase"
-
+import { Pencil, Trash2 } from "lucide-react"
 
 
 export default function SalaryDaysTable() {
@@ -167,20 +167,22 @@ export default function SalaryDaysTable() {
               {formatDate(d.payment_date)}
             </span>
 
-            <div className="flex gap-3 text-sm">
+            <div className="flex gap-2">
 
               <button
-                onClick={()=>openEdit(d)}
-                className="text-blue-600 hover:underline"
+                onClick={() => openEdit(d)}
+                className="p-1.5 rounded-md hover:bg-blue-100 text-blue-600 transition"
+                title="Editar"
               >
-                editar
+                <Pencil size={16} />
               </button>
 
               <button
-                onClick={()=>remove(d.id)}
-                className="text-red-500 hover:underline"
+                onClick={() => remove(d.id)}
+                className="p-1.5 rounded-md hover:bg-red-100 text-red-600 transition"
+                title="Excluir"
               >
-                excluir
+                <Trash2 size={16} />
               </button>
 
             </div>

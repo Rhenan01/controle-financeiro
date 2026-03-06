@@ -1,9 +1,9 @@
 "use client"
 
-import DescriptionCategoryTable from "../../components/settings/DescriptionCategoryTable"
-import CardsTable from "../../components/settings/CardsTable"
-import PaymentMethodsTable from "../../components/settings/PaymentMethodsTable"
-import SalaryDaysTable from "../../components/settings/SalaryDaysTable"
+import DescriptionCategoryTable from "../../../components/settings/DescriptionCategoryTable"
+import CardsTable from "../../../components/settings/CardsTable"
+import PaymentMethodsTable from "../../../components/settings/PaymentMethodsTable"
+import SalaryDaysTable from "../../../components/settings/SalaryDaysTable"
 
 export default function Configuracoes() {
 

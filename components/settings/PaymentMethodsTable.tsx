@@ -2,7 +2,7 @@
 
 import { useState,useEffect } from "react"
 import { supabase } from "@/lib/supabase"
-
+import { Pencil, Trash2 } from "lucide-react"
 
 
 export default function PaymentMethodsTable() {
@@ -157,20 +157,23 @@ export default function PaymentMethodsTable() {
               {m.name}
             </span>
 
-            <div className="flex gap-3 text-sm">
+
+            <div className="flex gap-2">
 
               <button
-                onClick={()=>openEdit(m)}
-                className="text-blue-600 hover:underline"
+                onClick={() => openEdit(m)}
+                className="p-1.5 rounded-md hover:bg-blue-100 text-blue-600 transition"
+                title="Editar"
               >
-                editar
+                <Pencil size={16} />
               </button>
 
               <button
-                onClick={()=>remove(m.id)}
-                className="text-red-500 hover:underline"
+                onClick={() => remove(m.id)}
+                className="p-1.5 rounded-md hover:bg-red-100 text-red-600 transition"
+                title="Excluir"
               >
-                excluir
+                <Trash2 size={16} />
               </button>
 
             </div>

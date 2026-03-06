@@ -59,6 +59,7 @@ export default function TransactionsPreview({financialRange}:Props){
 
     if(selectedCategory){
 
+      // FILTRO POR CATEGORIA
       list = list.filter(t=>{
 
         const cat = categoryMap[t.description] ?? "Outros"
@@ -67,11 +68,23 @@ export default function TransactionsPreview({financialRange}:Props){
 
       })
 
-    }
+      // ORDEM POR VALOR (como já era)
+      return list
+        .sort((a,b)=>Math.abs(b.value) - Math.abs(a.value))
+        .slice(0,10)
 
-    return list
-      .sort((a,b)=>Math.abs(b.value) - Math.abs(a.value))
-      .slice(0,10)
+    }else{
+
+      // ÚLTIMAS MOVIMENTAÇÕES
+
+      list = list.filter(t=>t.status === "PAGO")
+
+      // ORDEM POR DATA MAIS RECENTE
+      return list
+        .sort((a,b)=>b.date.localeCompare(a.date))
+        .slice(0,10)
+
+    }
 
   },[transactions,financialRange,selectedCategory,categoryMap])
 

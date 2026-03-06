@@ -4,18 +4,18 @@ import { useState, useMemo, useEffect } from "react"
 import { supabase } from "@/lib/supabase"
 import { useFinanceStore } from "@/store/financeStore"
 
-import MonthlyFlow from "../../components/charts/MonthlyFlow"
+import MonthlyFlow from "../../../components/charts/MonthlyFlow"
 import dynamic from "next/dynamic"
-import CreditCardsStatus from "../../components/cards/CreditCardsStatus"
+import CreditCardsStatus from "../../../components/cards/CreditCardsStatus"
 import TransactionsPreview from "@/components/tables/TransactionsPreview"
 
 const CategoryDonut = dynamic(
-  () => import("../../components/charts/CategoryDonut"),
+  () => import("../../../components/charts/CategoryDonut"),
   { ssr: false }
 )
 
 const BalanceTrend = dynamic(
-  () => import("../../components/charts/BalanceTrend"),
+  () => import("../../../components/charts/BalanceTrend"),
   { ssr: false }
 )
 
@@ -63,22 +63,14 @@ export default function Dashboard() {
 
     async function init(){
 
-      let { data } = await supabase.auth.getUser()
-      let user = data.user
+      const { data } = await supabase.auth.getUser()
+      const user = data.user
 
       if(!user){
-
-        const login = await supabase.auth.signInWithPassword({
-          email:"teste@teste.com",
-          password:"12345678"
-        })
-
-        user = login.data.user
+        return
       }
 
-      if(user){
-        await loadTransactions(user.id)
-      }
+      await loadTransactions(user.id)
 
     }
 

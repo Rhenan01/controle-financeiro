@@ -41,7 +41,37 @@ export default function TransactionsTable({ transactions }: Props) {
   const [mounted,setMounted] = useState(false)
 
   const [cards,setCards] = useState<any[]>([])
+  const loadTransactions = useFinanceStore((s) => s.loadTransactions)
+  async function getUserId() {
 
+    const { data } = await supabase.auth.getUser()
+
+    return data.user?.id
+
+  }
+  async function toggleStatus(transaction: Transaction) {
+
+    const newStatus =
+      transaction.status === "PAGO"
+        ? "PREVISTO"
+        : "PAGO"
+
+    const { error } = await supabase
+      .from("transactions")
+      .update({ status: newStatus })
+      .eq("id", transaction.id)
+
+    if (!error) {
+
+      const userId = await getUserId()
+
+      if (userId) {
+        await loadTransactions(userId)
+      }
+
+    }
+
+  }
   useEffect(()=>{
 
     async function loadCards(){
@@ -513,7 +543,29 @@ export default function TransactionsTable({ transactions }: Props) {
                     </td>
 
                     <td className="p-3 text-center">
-                      {t.status}
+
+                      <label className="flex items-center justify-center gap-2 cursor-pointer">
+
+                        <input
+                          type="checkbox"
+                          checked={t.status === "PAGO"}
+                          onChange={() => toggleStatus(t)}
+                          className="w-4 h-4 accent-emerald-600 cursor-pointer"
+                        />
+
+                        <span
+                          className={`px-2 py-1 text-xs font-semibold rounded-full transition
+                          ${
+                            t.status === "PAGO"
+                              ? "bg-emerald-100 text-emerald-700"
+                              : "bg-amber-100 text-amber-700"
+                          }`}
+                        >
+                          {t.status}
+                        </span>
+
+                      </label>
+
                     </td>
 
                     <td className="p-3 text-center">
