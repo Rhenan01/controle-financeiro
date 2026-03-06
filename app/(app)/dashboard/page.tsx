@@ -184,13 +184,24 @@ export default function Dashboard() {
     })
 
   }
+  function formatDate(date:string){
+
+    const [y,m,d] = date.split("-")
+
+    return `${d}/${m}/${y}`
+
+  }
 
   return(
 
     <div className="p-10">
 
       {/* seletor de meses */}
-
+      <div className="mb-2 text-sm text-gray-500">
+        📅 <span className="font-medium text-gray-700">
+        {formatDate(financialRange.start)} → {formatDate(financialRange.end)}
+        </span>
+      </div>
       <div className="mb-6 bg-white/60 backdrop-blur-sm border border-gray-200 p-2 rounded-2xl shadow-sm">
 
         <div className="grid grid-cols-12 gap-2">

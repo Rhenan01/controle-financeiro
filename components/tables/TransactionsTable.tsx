@@ -157,6 +157,7 @@ export default function TransactionsTable({ transactions }: Props) {
 
     function close(){
       setOpenFilter(null)
+      setSearch("")
     }
 
     window.addEventListener("click",close)
@@ -250,6 +251,14 @@ export default function TransactionsTable({ transactions }: Props) {
 
   },[transactionsWithBalance])
 
+const selectedTotal = useMemo(()=>{
+
+    return transactions
+      .filter(t => selected.includes(t.id))
+      .reduce((sum,t)=>sum + t.value,0)
+
+  },[selected,transactions])
+
   function toggleFilter(key:keyof Filters,value:string){
 
     setFilters(prev=>{
@@ -339,9 +348,25 @@ export default function TransactionsTable({ transactions }: Props) {
 
   }
 
+  function toggleSelectDay(date:string){
+
+    const ids = groupedByDate[date].map(t=>t.id)
+
+    const allSelected = ids.every(id=>selected.includes(id))
+
+    if(allSelected){
+      setSelected(prev => prev.filter(id => !ids.includes(id)))
+    }else{
+      setSelected(prev => [...new Set([...prev,...ids])])
+    }
+
+  }
+
   function FilterDropdown({column}:{column:keyof Filters}){
 
-    const values = uniqueValues(column)
+    const values = useMemo(()=>{
+      return uniqueValues(column)
+    },[column])
 
     return(
 
@@ -352,6 +377,7 @@ export default function TransactionsTable({ transactions }: Props) {
         {column==="description" && (
 
           <input
+            autoFocus
             className="w-full border p-1 mb-2 text-xs"
             placeholder="Buscar..."
             value={search}
@@ -393,10 +419,10 @@ export default function TransactionsTable({ transactions }: Props) {
 
       {selected.length>0 &&(
 
-        <div className="flex justify-between items-center p-3 bg-blue-50 border-b">
+        <div className="flex justify-between items-center p-3 bg-blue-50 border-b sticky top-[119px] z-30">
 
           <span className="text-sm text-blue-700 font-medium">
-            {selected.length} selecionados
+            {selected.length} selecionados • Total: {money(selectedTotal)}
           </span>
 
           <button
@@ -452,7 +478,14 @@ export default function TransactionsTable({ transactions }: Props) {
                   <button
                     onClick={(e)=>{
                       e.stopPropagation()
-                      setOpenFilter(openFilter===key?null:key)
+
+                      if(openFilter===key){
+                        setOpenFilter(null)
+                        setSearch("")
+                      }else{
+                        setOpenFilter(key)
+                      }
+
                     }}
                     className="text-slate-400 hover:text-slate-600"
                   >
@@ -461,7 +494,12 @@ export default function TransactionsTable({ transactions }: Props) {
 
                 </div>
 
-                {openFilter===key && <FilterDropdown column={key as keyof Filters}/>}
+                {openFilter===key && (
+                  <FilterDropdown
+                    key={key}
+                    column={key as keyof Filters}
+                  />
+                )}
 
               </th>
 
@@ -487,7 +525,15 @@ export default function TransactionsTable({ transactions }: Props) {
 
                 <tr className="bg-slate-50">
 
-                  <td></td>
+                  <td className="text-center">
+
+                    <input
+                      type="checkbox"
+                      checked={groupedByDate[date].every(t => selected.includes(t.id))}
+                      onChange={()=>toggleSelectDay(date)}
+                    />
+
+                  </td>
 
                   <td colSpan={10} className="px-2 py-2 text-sm">
 

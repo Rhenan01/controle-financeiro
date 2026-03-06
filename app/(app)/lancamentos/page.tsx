@@ -352,13 +352,17 @@ export default function Lancamentos() {
       </div>
 
 
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-8">
+      <div className="sticky top-0 z-30  py-4 mb-4">
 
-        <Card title="Entradas" value={money(metrics.entradas)} positive />
-        <Card title="Saídas" value={money(metrics.saidas)} negative />
-        <Card title="Saldo atual" value={money(metrics.saldo)} dynamic={metrics.saldo} />
-        <Card title="Previsto" value={money(metrics.previsto)} dynamic={metrics.previsto} />
-        <Card title="Líquido do mês" value={money(metrics.liquido)} dynamic={metrics.liquido} />
+        <div className="max-w-[1400px] mx-auto grid grid-cols-1 md:grid-cols-5 gap-4">
+
+          <Card title="Entradas" value={money(metrics.entradas)} positive />
+          <Card title="Saídas" value={money(metrics.saidas)} negative />
+          <Card title="Saldo atual" value={money(metrics.saldo)} dynamic={metrics.saldo} />
+          <Card title="Previsto" value={money(metrics.previsto)} dynamic={metrics.previsto} />
+          <Card title="Líquido do mês" value={money(metrics.liquido)} dynamic={metrics.liquido} />
+
+        </div>
 
       </div>
 
