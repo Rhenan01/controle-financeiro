@@ -123,13 +123,21 @@ export default function TransactionsTable({ transactions }: Props) {
 
     const today = new Date().toISOString().slice(0,10)
 
-    const initial:any = {}
+    setCollapsedDays(prev => {
 
-    transactions.forEach(t=>{
-      initial[t.date] = t.date < today
+      const updated = {...prev}
+
+      transactions.forEach(t => {
+
+        if(updated[t.date] === undefined){
+          updated[t.date] = t.date < today
+        }
+
+      })
+
+      return updated
+
     })
-
-    setCollapsedDays(initial)
 
   },[transactions])
 
@@ -648,7 +656,15 @@ const selectedTotal = useMemo(()=>{
 
                         <button
                           onClick={()=>deleteTransaction(t.id)}
-                          className="text-red-600 hover:text-red-800"
+                          className="
+                          w-8 h-8
+                          flex items-center justify-center
+                          rounded-md
+                          text-red-600
+                          hover:bg-red-50
+                          hover:text-red-700
+                          transition
+                          "
                         >
                           <Trash2 size={16}/>
                         </button>
