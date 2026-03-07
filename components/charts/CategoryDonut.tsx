@@ -99,7 +99,7 @@ export default function CategoryDonut({financialRange}:Props){
 
     filtered.forEach(t=>{
 
-      if(t.type==="ENTRADA"){
+      if(t.type==="ENTRADA" && t.payment !== "AJUSTE"){
         entradas += t.value
       }
 

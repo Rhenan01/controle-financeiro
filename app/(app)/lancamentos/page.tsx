@@ -86,7 +86,12 @@ export default function Lancamentos() {
 
       const end = subtractOneDay(nextPayment)
 
-      const date = new Date(end)   // 🔹 usar o FINAL do range
+      const startDate = new Date(start)
+      const endDate = new Date(end)
+
+      // pega o meio do período
+      const middleTime = (startDate.getTime() + endDate.getTime()) / 2
+      const date = new Date(middleTime)
 
       const label = date.toLocaleDateString("pt-BR",{
         month:"short",
@@ -105,7 +110,7 @@ export default function Lancamentos() {
 
   },[salaryDays])
 
-
+  
   const financialRange = useMemo(() => {
 
     if (monthFilter === "all") return null

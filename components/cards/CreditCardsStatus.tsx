@@ -211,7 +211,32 @@ export default function CreditCardsStatus({financialRange}:Props){
     })
 
   }
+  if(cards.length === 0){
 
+    return(
+
+      <div className="bg-white/80 backdrop-blur-sm p-8 rounded-2xl shadow-lg border border-gray-200 flex flex-col items-center justify-center text-center">
+
+        <div className="w-14 h-14 rounded-xl bg-blue-50 flex items-center justify-center mb-4">
+
+          <span className="text-2xl">💳</span>
+
+        </div>
+
+        <h3 className="text-lg font-semibold text-slate-800 mb-1">
+          Nenhum cartão cadastrado
+        </h3>
+
+        <p className="text-sm text-slate-500 max-w-sm">
+          Cadastre um cartão de crédito para acompanhar suas faturas
+          automaticamente aqui no dashboard.
+        </p>
+
+      </div>
+
+    )
+
+  }
   return(
 
     <div className="bg-white/80 backdrop-blur-sm p-6 rounded-2xl shadow-lg border border-gray-200">

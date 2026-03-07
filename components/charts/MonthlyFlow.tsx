@@ -62,9 +62,11 @@ function moneyTooltip(value: number | string | undefined) {
 
 }
 
+type Props = {
+  financialMonths: any[]
+}
 
-
-export default function MonthlyFlow() {
+export default function MonthlyFlow({ financialMonths }: Props) {
 
   const transactions = useFinanceStore((s) => s.transactions)
 

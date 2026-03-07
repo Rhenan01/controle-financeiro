@@ -19,58 +19,38 @@ const BalanceTrend = dynamic(
   { ssr: false }
 )
 
-const financialMonths = [
-
-{ start: "2025-12-30", end: "2026-01-29", label: "Jan" },
-{ start: "2026-01-30", end: "2026-02-26", label: "Fev" },
-{ start: "2026-02-27", end: "2026-03-29", label: "Mar" },
-{ start: "2026-03-30", end: "2026-04-29", label: "Abr" },
-{ start: "2026-04-30", end: "2026-05-28", label: "Mai" },
-{ start: "2026-05-29", end: "2026-06-29", label: "Jun" },
-{ start: "2026-06-30", end: "2026-07-29", label: "Jul" },
-{ start: "2026-07-30", end: "2026-08-27", label: "Ago" },
-{ start: "2026-08-28", end: "2026-09-29", label: "Set" },
-{ start: "2026-09-30", end: "2026-10-29", label: "Out" },
-{ start: "2026-10-30", end: "2026-11-29", label: "Nov" },
-{ start: "2026-11-30", end: "2026-12-29", label: "Dez" }
-
-]
-
 export default function Dashboard() {
 
-  const transactions = useFinanceStore((s) => s.transactions)
-  const loadTransactions = useFinanceStore((s) => s.loadTransactions)
+  const transactions = useFinanceStore((s)=>s.transactions)
+  const loadTransactions = useFinanceStore((s)=>s.loadTransactions)
 
-  const months = [
-    "Jan","Fev","Mar","Abr","Mai","Jun",
-    "Jul","Ago","Set","Out","Nov","Dez"
-  ]
+  const [salaryDays,setSalaryDays] = useState<string[]>([])
 
-  function getCurrentMonthLabel(){
+  const [monthFilter,setMonthFilter] = useState<string>("")
 
-    const today = new Date().toISOString().slice(0,10)
-
-    const current = financialMonths.find(m =>
-      today >= m.start && today <= m.end
-    )
-
-    return current?.label ?? "Jan"
-  }
-
-  const [monthFilter, setMonthFilter] = useState(getCurrentMonthLabel())
-
-  useEffect(() => {
+  useEffect(()=>{
 
     async function init(){
 
       const { data } = await supabase.auth.getUser()
       const user = data.user
 
-      if(!user){
-        return
-      }
+      if(!user) return
 
       await loadTransactions(user.id)
+
+      const { data:days } = await supabase
+        .from("salary_days")
+        .select("payment_date")
+        .order("payment_date")
+
+      if(days){
+
+        const list = days.map(d=>d.payment_date)
+
+        setSalaryDays(list)
+
+      }
 
     }
 
@@ -78,34 +58,107 @@ export default function Dashboard() {
 
   },[loadTransactions])
 
+
+
+  const financialMonths = useMemo(()=>{
+
+    if(salaryDays.length < 2) return []
+
+    const months:any[] = []
+
+    for(let i=0;i<salaryDays.length-1;i++){
+
+      const start = salaryDays[i]
+
+      const next = salaryDays[i+1]
+
+      const endDate = new Date(next)
+      endDate.setDate(endDate.getDate()-1)
+
+      const end = endDate.toISOString().slice(0,10)
+
+      const middle = new Date(
+        (new Date(start).getTime() + endDate.getTime()) / 2
+      )
+
+      const label = middle
+        .toLocaleDateString("pt-BR",{month:"short"})
+        .replace(".","")
+
+      months.push({
+
+        start,
+        end,
+        label: label.charAt(0).toUpperCase() + label.slice(1)
+
+      })
+
+    }
+
+    return months
+
+  },[salaryDays])
+
+
+
+  useEffect(()=>{
+
+    if(financialMonths.length === 0) return
+
+    const today = new Date().toISOString().slice(0,10)
+
+    const current = financialMonths.find(m=>
+      today >= m.start && today <= m.end
+    )
+
+    setMonthFilter(current?.label ?? financialMonths[0].label)
+
+  },[financialMonths])
+
+
+
+  const months = financialMonths.map(m=>m.label)
+
+
+
   const financialRange = useMemo(()=>{
 
-    return financialMonths.find(m => m.label === monthFilter)!
+    return financialMonths.find(m=>m.label===monthFilter)
 
-  },[monthFilter])
+  },[financialMonths,monthFilter])
+
+
 
   const filteredTransactions = useMemo(()=>{
 
     if(!financialRange) return transactions
 
-    return transactions.filter(t =>
+    return transactions.filter(t=>
+
       t.date >= financialRange.start &&
       t.date <= financialRange.end
+
     )
 
   },[transactions,financialRange])
 
+
+
   const currentMonthStart = useMemo(()=>{
+
+    if(financialMonths.length === 0) return ""
 
     const today = new Date().toISOString().slice(0,10)
 
-    const current = financialMonths.find(m =>
+    const current = financialMonths.find(m=>
       today >= m.start && today <= m.end
     )
 
     return current?.start ?? financialMonths[0].start
 
-  },[])
+  },[financialMonths])
+
+
 
   const metrics = useMemo(()=>{
 
@@ -133,13 +186,17 @@ export default function Dashboard() {
 
     })
 
+
+
     let entradasPagasLiquido = 0
     let saidasPagasLiquido = 0
     let entradasPrevLiquido = 0
     let saidasPrevLiquido = 0
 
+
+
     transactions
-      .filter(t => t.date >= currentMonthStart)
+      .filter(t=>t.date >= currentMonthStart)
       .forEach(t=>{
 
         if(t.status === "PAGO"){
@@ -158,6 +215,8 @@ export default function Dashboard() {
 
       })
 
+
+
     const saldo = entradasPagas - saidasPagas
 
     const liquidoMes =
@@ -168,6 +227,8 @@ export default function Dashboard() {
       (entradasPagasLiquido - saidasPagasLiquido) +
       (entradasPrevLiquido - saidasPrevLiquido)
 
+
+
     return{
       saldo,
       liquidoMes,
@@ -175,6 +236,8 @@ export default function Dashboard() {
     }
 
   },[filteredTransactions,transactions,currentMonthStart])
+
+
 
   function money(v:number){
 
@@ -184,6 +247,9 @@ export default function Dashboard() {
     })
 
   }
+
+
+
   function formatDate(date:string){
 
     const [y,m,d] = date.split("-")
@@ -192,16 +258,28 @@ export default function Dashboard() {
 
   }
 
+
+
+  if(!financialRange) return null
+
+
+
   return(
 
     <div className="p-10">
 
-      {/* seletor de meses */}
       <div className="mb-2 text-sm text-gray-500">
+
         📅 <span className="font-medium text-gray-700">
+
         {formatDate(financialRange.start)} → {formatDate(financialRange.end)}
+
         </span>
+
       </div>
+
+
+
       <div className="mb-6 bg-white/60 backdrop-blur-sm border border-gray-200 p-2 rounded-2xl shadow-sm">
 
         <div className="grid grid-cols-12 gap-2">
@@ -233,51 +311,39 @@ export default function Dashboard() {
 
       </div>
 
-      {/* cards */}
+
 
       <div className="grid grid-cols-3 gap-8">
 
-        <Card
-          title="Saldo do mês"
-          value={money(metrics.saldo)}
-          dynamic={metrics.saldo}
-        />
+        <Card title="Saldo do mês" value={money(metrics.saldo)} dynamic={metrics.saldo} />
 
-        <Card
-          title="Líquido do mês"
-          value={money(metrics.liquidoMes)}
-          dynamic={metrics.liquidoMes}
-        />
+        <Card title="Líquido do mês" value={money(metrics.liquidoMes)} dynamic={metrics.liquidoMes} />
 
-        <Card
-          title="Líquido acumulado"
-          value={money(metrics.liquidoAcumulado)}
-          dynamic={metrics.liquidoAcumulado}
-        />
+        <Card title="Líquido acumulado" value={money(metrics.liquidoAcumulado)} dynamic={metrics.liquidoAcumulado} />
 
       </div>
 
-      {/* PRINCIPAL — evolução + cartões */}
+
 
       <div className="mt-8 grid grid-cols-1 lg:grid-cols-2 gap-6">
 
-        <BalanceTrend />
+        <BalanceTrend financialMonths={financialMonths} />
 
         <CreditCardsStatus financialRange={financialRange} />
 
       </div>
 
-      {/* ANALÍTICO */}
+
 
       <div className="mt-6 grid grid-cols-1 lg:grid-cols-2 gap-6">
 
-        <MonthlyFlow />
+        <MonthlyFlow financialMonths={financialMonths} />
 
         <CategoryDonut financialRange={financialRange} />
 
       </div>
 
-      {/* transações */}
+
 
       <div className="mt-6">
 
@@ -291,6 +357,8 @@ export default function Dashboard() {
 
 }
 
+
+
 function Card({title,value,dynamic}:any){
 
   let color = "text-slate-800"
@@ -302,9 +370,7 @@ function Card({title,value,dynamic}:any){
 
     <div className="bg-white/80 backdrop-blur-sm p-6 rounded-2xl shadow-lg border border-gray-200 hover:shadow-xl transition-all duration-300">
 
-      <p className="text-gray-500 text-sm mb-2">
-        {title}
-      </p>
+      <p className="text-gray-500 text-sm mb-2">{title}</p>
 
       <h2 className={`text-3xl font-semibold tracking-tight ${color}`}>
         {value}

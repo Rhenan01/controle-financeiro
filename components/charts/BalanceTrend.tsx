@@ -4,26 +4,15 @@ import { useMemo } from "react"
 import Chart from "react-apexcharts"
 import { useFinanceStore } from "@/store/financeStore"
 
+type FinancialMonth = {
+  start:string
+  end:string
+  label:string
+}
 
-
-const financialMonths = [
-
-{ start: "2025-12-30", end: "2026-01-29", label: "Jan" },
-{ start: "2026-01-30", end: "2026-02-26", label: "Fev" },
-{ start: "2026-02-27", end: "2026-03-29", label: "Mar" },
-{ start: "2026-03-30", end: "2026-04-29", label: "Abr" },
-{ start: "2026-04-30", end: "2026-05-28", label: "Mai" },
-{ start: "2026-05-29", end: "2026-06-29", label: "Jun" },
-{ start: "2026-06-30", end: "2026-07-29", label: "Jul" },
-{ start: "2026-07-30", end: "2026-08-27", label: "Ago" },
-{ start: "2026-08-28", end: "2026-09-29", label: "Set" },
-{ start: "2026-09-30", end: "2026-10-29", label: "Out" },
-{ start: "2026-10-30", end: "2026-11-29", label: "Nov" },
-{ start: "2026-11-30", end: "2026-12-29", label: "Dez" }
-
-]
-
-
+type Props = {
+  financialMonths: FinancialMonth[]
+}
 
 function money(v:number){
 
@@ -36,13 +25,9 @@ function money(v:number){
 
 }
 
-
-
-export default function BalanceTrend(){
+export default function BalanceTrend({financialMonths}:Props){
 
   const transactions = useFinanceStore((s)=>s.transactions)
-
-
 
   const { months, data } = useMemo(()=>{
 
@@ -93,7 +78,7 @@ export default function BalanceTrend(){
       data: liquidoPorMes
     }
 
-  },[transactions])
+  },[transactions,financialMonths])
 
 
 
@@ -105,7 +90,80 @@ export default function BalanceTrend(){
       zoom:{ enabled:false },
       foreColor:"#64748b"
     },
+    tooltip: {
+      custom: function({ series, seriesIndex, dataPointIndex, w }) {
 
+        const value = series[seriesIndex][dataPointIndex]
+
+        const label = months[dataPointIndex]
+
+        const positive = value >= 0
+
+        const color = positive ? "#10b981" : "#ef4444"
+
+        const arrow = positive ? "▲" : "▼"
+
+        const signal = positive ? "+" : ""
+
+        return `
+          <div style="
+            background:rgba(255,255,255,0.96);
+            backdrop-filter: blur(8px);
+            border:1px solid rgba(226,232,240,0.9);
+            border-radius:14px;
+            padding:14px 16px;
+            box-shadow:0 12px 32px rgba(0,0,0,0.12);
+            font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+            min-width:150px;
+          ">
+
+            <div style="
+              font-size:12px;
+              color:#64748b;
+              margin-bottom:6px;
+              font-weight:600;
+              letter-spacing:0.02em;
+            ">
+              ${label}
+            </div>
+
+            <div style="
+              display:flex;
+              align-items:center;
+              gap:6px;
+              margin-bottom:4px;
+            ">
+
+              <span style="
+                width:8px;
+                height:8px;
+                background:${color};
+                border-radius:50%;
+                display:inline-block;
+              "></span>
+
+              <span style="
+                font-size:12px;
+                color:#64748b;
+              ">
+                Resultado
+              </span>
+
+            </div>
+
+            <div style="
+              font-size:18px;
+              font-weight:700;
+              color:${color};
+              letter-spacing:-0.02em;
+            ">
+              ${arrow} ${signal}${money(value)}
+            </div>
+
+          </div>
+        `
+      }
+    },
     colors:["#2563eb"],
 
     stroke:{
@@ -137,9 +195,7 @@ export default function BalanceTrend(){
     },
 
     yaxis:{
-      labels:{
-        show:false,
-      }
+      labels:{ show:false }
     },
 
     grid:{
@@ -149,18 +205,12 @@ export default function BalanceTrend(){
 
     dataLabels:{
       enabled:true,
-
-      formatter:function(val:number){
-        return money(val)
-      },
-
+      formatter:(val:number)=>money(val),
       offsetY:-8,
-
       style:{
         fontSize:"11px",
         colors:["#1e3a8a"]
       },
-
       background:{
         enabled:true,
         foreColor:"#fff",
@@ -168,84 +218,16 @@ export default function BalanceTrend(){
         padding:4,
         opacity:0.9
       }
-
-    },
-
-    tooltip: {
-      custom: function({ series, seriesIndex, dataPointIndex, w }) {
-
-        const value = series[seriesIndex][dataPointIndex]
-        const label = w.globals.labels[dataPointIndex]
-
-        return `
-          <div style="
-            background:#ffffff;
-            border:1px solid #e5e7eb;
-            border-radius:12px;
-            padding:12px 14px;
-            box-shadow:0 12px 30px rgba(0,0,0,0.08);
-            font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
-            min-width:140px;
-          ">
-
-            <div style="
-              font-size:12px;
-              color:#64748b;
-              margin-bottom:6px;
-              font-weight:500;
-            ">
-              ${label}
-            </div>
-
-            <div style="
-              display:flex;
-              align-items:center;
-              gap:6px;
-              margin-bottom:4px;
-            ">
-              <span style="
-                width:8px;
-                height:8px;
-                background:#2563eb;
-                border-radius:50%;
-                display:inline-block;
-              "></span>
-
-              <span style="
-                font-size:12px;
-                color:#64748b;
-              ">
-                Resultado
-              </span>
-            </div>
-
-            <div style="
-              font-size:16px;
-              font-weight:700;
-              color:#0f172a;
-            ">
-              ${money(value)}
-            </div>
-
-          </div>
-        `
-      }
     }
 
   }
 
-
-
   const series = [
-
     {
       name:"Líquido do mês",
       data:data
     }
-
   ]
-
-
 
   return(
 
