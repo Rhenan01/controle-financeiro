@@ -11,6 +11,8 @@ export type Transaction = {
   payment: string
   card?: string
   installment?: string
+  related_transaction_id?: string | null
+  related_transaction_role?: "PRINCIPAL" | "ESTORNO_REEMBOLSO" | null
 }
 
 type FinanceState = {

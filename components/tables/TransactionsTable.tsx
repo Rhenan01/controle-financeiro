@@ -15,6 +15,8 @@ type Transaction = {
   payment: string
   card?: string
   installment?: string
+  related_transaction_id?: string | null
+  related_transaction_role?: "PRINCIPAL" | "ESTORNO_REEMBOLSO" | null
 }
 
 type Filters = {
@@ -89,7 +91,29 @@ export default function TransactionsTable({ transactions }: Props) {
     loadCards()
 
   },[])
+  const relatedInfoMap = useMemo(() => {
+    const map: Record<string, string> = {}
 
+    transactions.forEach((t) => {
+      let related: Transaction | undefined
+
+      if (t.related_transaction_id) {
+        related = transactions.find((r) => r.id === t.related_transaction_id)
+      } else {
+        related = transactions.find((r) => r.related_transaction_id === t.id)
+      }
+
+      if (!related) return
+
+      const dataFormatada = formatDate(related.date)
+      const valorFormatado = money(related.value)
+      const cartaoTexto = related.card ? ` • Cartão: ${related.card}` : ""
+
+      map[t.id] = `${related.description} • ${valorFormatado} • ${dataFormatada}${cartaoTexto}`
+    })
+
+    return map
+  }, [transactions])
   const cardColorMap = useMemo(()=>{
 
     const map:any = {}
@@ -114,32 +138,58 @@ export default function TransactionsTable({ transactions }: Props) {
 
   const [openFilter,setOpenFilter] = useState<string | null>(null)
   const [search,setSearch] = useState("")
-
+  const hasActiveFilters = useMemo(() => {
+    return Object.values(filters).some((arr) => arr.length > 0)
+  }, [filters])
   useEffect(()=>{
     setMounted(true)
   },[])
+  const filteredData = useMemo(()=>{
 
-  useEffect(()=>{
+    return transactions.filter(t=>{
 
-    const today = new Date().toISOString().slice(0,10)
+      if(filters.type.length && !filters.type.includes(t.type)) return false
+      if(filters.description.length && !filters.description.includes(t.description)) return false
+      if(filters.status.length && !filters.status.includes(t.status)) return false
+      if(filters.payment.length && !filters.payment.includes(t.payment)) return false
 
-    setCollapsedDays(prev => {
+      const card = t.card ?? "(vazio)"
+      if(filters.card.length && !filters.card.includes(card)) return false
 
-      const updated = {...prev}
+      const inst = t.installment ?? "(vazio)"
+      if(filters.installment.length && !filters.installment.includes(inst)) return false
 
-      transactions.forEach(t => {
+      const value = t.value.toString()
+      if(filters.value.length && !filters.value.includes(value)) return false
 
-        if(updated[t.date] === undefined){
-          updated[t.date] = t.date < today
-        }
-
-      })
-
-      return updated
+      return true
 
     })
 
-  },[transactions])
+  },[transactions,filters])
+useEffect(() => {
+  const today = new Date().toISOString().slice(0, 10)
+
+  setCollapsedDays((prev: Record<string, boolean>) => {
+    const updated: Record<string, boolean> = { ...prev }
+
+    const dateSet: Set<string> = new Set(
+      filteredData.map((t: Transaction) => t.date)
+    )
+
+    const dates: string[] = Array.from(dateSet)
+
+    dates.forEach((date: string) => {
+      if (hasActiveFilters) {
+        updated[date] = false
+      } else if (updated[date] === undefined) {
+        updated[date] = date < today
+      }
+    })
+
+    return updated
+  })
+}, [filteredData, hasActiveFilters])
 
   useEffect(()=>{
 
@@ -183,29 +233,7 @@ export default function TransactionsTable({ transactions }: Props) {
 
   }
 
-  const filteredData = useMemo(()=>{
 
-    return transactions.filter(t=>{
-
-      if(filters.type.length && !filters.type.includes(t.type)) return false
-      if(filters.description.length && !filters.description.includes(t.description)) return false
-      if(filters.status.length && !filters.status.includes(t.status)) return false
-      if(filters.payment.length && !filters.payment.includes(t.payment)) return false
-
-      const card = t.card ?? "(vazio)"
-      if(filters.card.length && !filters.card.includes(card)) return false
-
-      const inst = t.installment ?? "(vazio)"
-      if(filters.installment.length && !filters.installment.includes(inst)) return false
-
-      const value = t.value.toString()
-      if(filters.value.length && !filters.value.includes(value)) return false
-
-      return true
-
-    })
-
-  },[transactions,filters])
 
   const sortedTransactions = useMemo(()=>{
 
@@ -306,15 +334,53 @@ const selectedTotal = useMemo(()=>{
     }
 
   }
+  async function deleteWithRelated(transaction: Transaction) {
+    const idsToDelete = new Set<string>()
 
-  async function deleteSelected(){
+    idsToDelete.add(transaction.id)
 
-    for(const id of selected){
+    if (transaction.related_transaction_id) {
+      idsToDelete.add(transaction.related_transaction_id)
+    }
+
+    const relatedBack = transactions.find(
+      (t) => t.related_transaction_id === transaction.id
+    )
+
+    if (relatedBack) {
+      idsToDelete.add(relatedBack.id)
+    }
+
+    for (const id of idsToDelete) {
+      await deleteTransaction(id)
+    }
+  }
+  async function deleteSelected() {
+    const idsToDelete = new Set<string>()
+
+    transactions.forEach((t) => {
+      if (selected.includes(t.id)) {
+        idsToDelete.add(t.id)
+
+        if (t.related_transaction_id) {
+          idsToDelete.add(t.related_transaction_id)
+        }
+
+        const relatedBack = transactions.find(
+          (item) => item.related_transaction_id === t.id
+        )
+
+        if (relatedBack) {
+          idsToDelete.add(relatedBack.id)
+        }
+      }
+    })
+
+    for (const id of idsToDelete) {
       await deleteTransaction(id)
     }
 
     setSelected([])
-
   }
 
   function money(v:number){
@@ -340,21 +406,53 @@ const selectedTotal = useMemo(()=>{
     return days[d.getDay()]
   }
 
-  function uniqueValues(key:keyof Filters){
+  function uniqueValues(key: keyof Filters) {
+  const dataRespectingOtherFilters = transactions.filter((t) => {
+    if (key !== "type" && filters.type.length && !filters.type.includes(t.type)) return false
+    if (key !== "description" && filters.description.length && !filters.description.includes(t.description)) return false
+    if (key !== "status" && filters.status.length && !filters.status.includes(t.status)) return false
+    if (key !== "payment" && filters.payment.length && !filters.payment.includes(t.payment)) return false
 
-    const values = filteredData.map(t=>{
+    const card = t.card ?? "(vazio)"
+    if (key !== "card" && filters.card.length && !filters.card.includes(card)) return false
 
-      if(key==="card") return t.card ?? "(vazio)"
-      if(key==="installment") return t.installment ?? "(vazio)"
-      if(key==="value") return t.value.toString()
+    const inst = t.installment ?? "(vazio)"
+    if (key !== "installment" && filters.installment.length && !filters.installment.includes(inst)) return false
 
-      return (t as any)[key]
+    const value = t.value.toString()
+    if (key !== "value" && filters.value.length && !filters.value.includes(value)) return false
 
-    })
+    return true
+  })
 
-    return [...new Set(values)]
+  const values = dataRespectingOtherFilters.map((t) => {
+    if (key === "card") return t.card ?? "(vazio)"
+    if (key === "installment") return t.installment ?? "(vazio)"
+    if (key === "value") return t.value.toString()
 
+    return (t as any)[key]
+  })
+
+  const unique = [...new Set(values)]
+
+return unique.sort((a, b) => {
+  if (key === "value") {
+    return Number(a) - Number(b)
   }
+
+  if (key === "installment") {
+    const [aAtual = "0", aTotal = "0"] = a.split("/")
+    const [bAtual = "0", bTotal = "0"] = b.split("/")
+
+    const diffTotal = Number(aTotal) - Number(bTotal)
+    if (diffTotal !== 0) return diffTotal
+
+    return Number(aAtual) - Number(bAtual)
+  }
+
+  return a.localeCompare(b, "pt-BR", { numeric: true, sensitivity: "base" })
+})
+}
 
   function toggleSelectDay(date:string){
 
@@ -372,9 +470,7 @@ const selectedTotal = useMemo(()=>{
 
   function FilterDropdown({column}:{column:keyof Filters}){
 
-    const values = useMemo(()=>{
-      return uniqueValues(column)
-    },[column])
+  const values = uniqueValues(column)
 
     return(
 
@@ -589,7 +685,9 @@ const selectedTotal = useMemo(()=>{
                     </td>
 
                     <td className="p-3 text-center">
-                      {t.description}
+                      <span title={relatedInfoMap[t.id] || ""}>
+                        {t.description}
+                      </span>
                     </td>
 
                     <td className="p-3 text-center">
@@ -655,7 +753,7 @@ const selectedTotal = useMemo(()=>{
                         </button>
 
                         <button
-                          onClick={()=>deleteTransaction(t.id)}
+                          onClick={() => deleteWithRelated(t)}
                           className="
                           w-8 h-8
                           flex items-center justify-center

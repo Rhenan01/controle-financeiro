@@ -378,6 +378,7 @@ export default function Lancamentos() {
       <NewTransactionModal
         open={openModal}
         onClose={() => setOpenModal(false)}
+        financialMonths={financialMonths}
       />
 
     </div>
