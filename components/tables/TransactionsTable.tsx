@@ -398,12 +398,14 @@ const selectedTotal = useMemo(()=>{
     return `${d}/${m}/${y}`
   }
 
-  function weekday(date:string){
+  function weekday(date: string) {
+    const [y, m, d] = date.split("-").map(Number)
 
-    const d = new Date(date)
+    const dt = new Date(y, m - 1, d)
+
     const days = ["Dom","Seg","Ter","Qua","Qui","Sex","Sab"]
 
-    return days[d.getDay()]
+    return days[dt.getDay()]
   }
 
   function uniqueValues(key: keyof Filters) {
