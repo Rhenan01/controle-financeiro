@@ -5,9 +5,12 @@ import Chart from "react-apexcharts"
 import { useFinanceStore } from "@/store/financeStore"
 
 type FinancialMonth = {
-  start:string
-  end:string
-  label:string
+  start: string
+  end: string
+  label: string
+  shortLabel: string
+  year: number
+  month: number
 }
 
 type Props = {
@@ -27,7 +30,8 @@ function money(v:number){
 
 export default function BalanceTrend({financialMonths}:Props){
 
-  const transactions = useFinanceStore((s)=>s.transactions)
+  const transactions = useFinanceStore((s) => s.transactions)
+  const selectedYear = useFinanceStore((s) => s.selectedFinancialYear)
 
   const { months, data } = useMemo(()=>{
 
@@ -74,7 +78,7 @@ export default function BalanceTrend({financialMonths}:Props){
     })
 
     return {
-      months: financialMonths.map(m=>m.label),
+      months: financialMonths.map((m) => m.shortLabel),
       data: liquidoPorMes
     }
 
@@ -240,7 +244,7 @@ export default function BalanceTrend({financialMonths}:Props){
         </h3>
 
         <span className="text-sm text-slate-400">
-          2026
+          {selectedYear}
         </span>
 
       </div>

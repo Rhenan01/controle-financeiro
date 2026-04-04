@@ -14,27 +14,6 @@ import {
   Legend
 } from "recharts"
 
-
-
-const financialMonths = [
-
-{ start: "2025-12-30", end: "2026-01-29", label: "Jan" },
-{ start: "2026-01-30", end: "2026-02-26", label: "Fev" },
-{ start: "2026-02-27", end: "2026-03-29", label: "Mar" },
-{ start: "2026-03-30", end: "2026-04-29", label: "Abr" },
-{ start: "2026-04-30", end: "2026-05-28", label: "Mai" },
-{ start: "2026-05-29", end: "2026-06-29", label: "Jun" },
-{ start: "2026-06-30", end: "2026-07-29", label: "Jul" },
-{ start: "2026-07-30", end: "2026-08-27", label: "Ago" },
-{ start: "2026-08-28", end: "2026-09-29", label: "Set" },
-{ start: "2026-09-30", end: "2026-10-29", label: "Out" },
-{ start: "2026-10-30", end: "2026-11-29", label: "Nov" },
-{ start: "2026-11-30", end: "2026-12-29", label: "Dez" }
-
-]
-
-
-
 function moneyAxis(value: number | string | undefined) {
 
   const v = Number(value ?? 0)
@@ -62,12 +41,22 @@ function moneyTooltip(value: number | string | undefined) {
 
 }
 
+type FinancialMonth = {
+  start: string
+  end: string
+  label: string
+  shortLabel: string
+  year: number
+  month: number
+}
+
 type Props = {
-  financialMonths: any[]
+  financialMonths: FinancialMonth[]
 }
 
 export default function MonthlyFlow({ financialMonths }: Props) {
 
+  const selectedYear = useFinanceStore((s) => s.selectedFinancialYear)
   const transactions = useFinanceStore((s) => s.transactions)
 
 
@@ -94,14 +83,14 @@ export default function MonthlyFlow({ financialMonths }: Props) {
       })
 
       return {
-        mes: month.label,
+        mes: month.shortLabel,
         entrada,
         saida
       }
 
     })
 
-  }, [transactions])
+  }, [transactions, financialMonths])
 
 
 
@@ -116,7 +105,7 @@ export default function MonthlyFlow({ financialMonths }: Props) {
         </h2>
 
         <div className="text-sm text-slate-400">
-          2026
+          {selectedYear}
         </div>
 
       </div>

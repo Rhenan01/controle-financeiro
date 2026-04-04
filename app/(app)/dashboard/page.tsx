@@ -27,6 +27,8 @@ export default function Dashboard() {
   const [salaryDays,setSalaryDays] = useState<string[]>([])
 
   const [monthFilter,setMonthFilter] = useState<string>("")
+  const selectedYear = useFinanceStore((s) => s.selectedFinancialYear)
+  const setSelectedYear = useFinanceStore((s) => s.setSelectedFinancialYear)
 
   useEffect(()=>{
 
@@ -60,72 +62,84 @@ export default function Dashboard() {
 
 
 
-  const financialMonths = useMemo(()=>{
+  const financialMonths = useMemo(() => {
+    if (salaryDays.length < 2) return []
 
-    if(salaryDays.length < 2) return []
+    const months: {
+      start: string
+      end: string
+      label: string
+      shortLabel: string
+      year: number
+      month: number
+    }[] = []
 
-    const months:any[] = []
-
-    for(let i=0;i<salaryDays.length-1;i++){
-
+    for (let i = 0; i < salaryDays.length - 1; i++) {
       const start = salaryDays[i]
-
-      const next = salaryDays[i+1]
+      const next = salaryDays[i + 1]
 
       const endDate = new Date(next)
-      endDate.setDate(endDate.getDate()-1)
+      endDate.setDate(endDate.getDate() - 1)
 
-      const end = endDate.toISOString().slice(0,10)
+      const end = endDate.toISOString().slice(0, 10)
 
-      const middle = new Date(
-        (new Date(start).getTime() + endDate.getTime()) / 2
-      )
+      const referenceDate = new Date(endDate)
 
-      const label = middle
-        .toLocaleDateString("pt-BR",{month:"short"})
-        .replace(".","")
+      const shortLabel = referenceDate
+        .toLocaleDateString("pt-BR", { month: "short" })
+        .replace(".", "")
+
+      const month = referenceDate.getMonth() + 1
+      const year = referenceDate.getFullYear()
 
       months.push({
-
         start,
         end,
-        label: label.charAt(0).toUpperCase() + label.slice(1)
-
+        shortLabel: shortLabel.charAt(0).toUpperCase() + shortLabel.slice(1),
+        label: `${shortLabel.charAt(0).toUpperCase() + shortLabel.slice(1)}/${year}`,
+        year,
+        month
       })
-
     }
 
     return months
+  }, [salaryDays])
+  const availableYears = useMemo(() => {
+  const years = financialMonths.map((m) => m.year)
+  return [...new Set(years)].sort((a, b) => a - b)
+}, [financialMonths])
+const financialMonthsOfYear = useMemo(() => {
+  return financialMonths.filter((m) => m.year === selectedYear)
+}, [financialMonths, selectedYear])
+const financialYearStart = financialMonthsOfYear[0]?.start ?? ""
+const financialYearEnd =
+  financialMonthsOfYear[financialMonthsOfYear.length - 1]?.end ?? ""
 
-  },[salaryDays])
 
+  useEffect(() => {
+    if (financialMonthsOfYear.length === 0) {
+      setMonthFilter("")
+      return
+    }
 
+    const today = new Date().toISOString().slice(0, 10)
 
-  useEffect(()=>{
-
-    if(financialMonths.length === 0) return
-
-    const today = new Date().toISOString().slice(0,10)
-
-    const current = financialMonths.find(m=>
-      today >= m.start && today <= m.end
+    const current = financialMonthsOfYear.find(
+      (m) => today >= m.start && today <= m.end
     )
 
-    setMonthFilter(current?.label ?? financialMonths[0].label)
-
-  },[financialMonths])
-
-
-
-  const months = financialMonths.map(m=>m.label)
+    setMonthFilter(current?.label ?? financialMonthsOfYear[0].label)
+  }, [financialMonthsOfYear])
 
 
 
-  const financialRange = useMemo(()=>{
+  const months = financialMonthsOfYear.map((m) => m.label)
 
-    return financialMonths.find(m=>m.label===monthFilter)
 
-  },[financialMonths,monthFilter])
+
+const financialRange = useMemo(() => {
+  return financialMonthsOfYear.find((m) => m.label === monthFilter)
+}, [financialMonthsOfYear, monthFilter])
 
 
 
@@ -195,9 +209,13 @@ export default function Dashboard() {
 
 
 
-    transactions
-      .filter(t=>t.date >= currentMonthStart)
-      .forEach(t=>{
+      transactions
+        .filter(
+          (t) =>
+            t.date >= currentMonthStart &&
+            t.date <= financialYearEnd
+        )
+        .forEach((t) => {
 
         if(t.status === "PAGO"){
 
@@ -235,7 +253,7 @@ export default function Dashboard() {
       liquidoAcumulado
     }
 
-  },[filteredTransactions,transactions,currentMonthStart])
+  }, [filteredTransactions, transactions, currentMonthStart, financialYearEnd])
 
 
 
@@ -260,13 +278,77 @@ export default function Dashboard() {
 
 
 
-  if(!financialRange) return null
+  if (financialMonthsOfYear.length === 0) {
+    return (
+      <div className="p-10">
+        <div className="mb-4 bg-white/70 backdrop-blur-sm border border-gray-200 p-3 rounded-2xl shadow-sm">
+          <div className="flex items-center gap-3 flex-wrap">
+            <div className="px-2">
+
+            </div>
+
+            {availableYears.map((year) => {
+              const active = selectedYear === year
+
+              return (
+                <button
+                  key={year}
+                  onClick={() => setSelectedYear(year)}
+                  className={`min-w-[88px] px-4 py-2.5 text-sm font-semibold rounded-xl transition-all duration-300
+                  ${
+                    active
+                      ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg scale-[1.04]"
+                      : "bg-white text-slate-600 border border-gray-200 hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700 hover:-translate-y-0.5"
+                  }`}
+                >
+                  {year}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+
+        <div className="bg-white border border-gray-200 rounded-xl p-6 text-slate-600">
+          Não há períodos financeiros cadastrados para este ano.
+        </div>
+      </div>
+    )
+  }
+
+if (!financialRange) return null
 
 
 
   return(
 
-    <div className="p-10">
+    <div className="p-2">
+
+    <div className="mb-4 bg-white/70 backdrop-blur-sm border border-gray-200 p-3 rounded-2xl shadow-sm">
+      <div className="flex items-center gap-3 flex-wrap">
+        <div className="px-2">
+
+        </div>
+
+        {availableYears.map((year) => {
+          const active = selectedYear === year
+
+          return (
+            <button
+              key={year}
+              onClick={() => setSelectedYear(year)}
+              className={`min-w-[88px] px-4 py-2.5 text-sm font-semibold rounded-xl transition-all duration-300
+              ${
+                active
+                  ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg scale-[1.04]"
+                  : "bg-white text-slate-600 border border-gray-200 hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700 hover:-translate-y-0.5"
+              }`}
+            >
+              {year}
+            </button>
+          )
+        })}
+      </div>
+    </div>
 
       <div className="mb-2 text-sm text-gray-500">
 
@@ -284,27 +366,23 @@ export default function Dashboard() {
 
         <div className="grid grid-cols-12 gap-2">
 
-          {months.map(month=>{
+          {financialMonthsOfYear.map((month) => {
+            const active = monthFilter === month.label
 
-            const active = monthFilter === month
-
-            return(
-
+            return (
               <button
-                key={month}
-                onClick={()=>setMonthFilter(month)}
+                key={month.label}
+                onClick={() => setMonthFilter(month.label)}
                 className={`py-2 text-sm font-medium rounded-xl transition-all duration-200
                 ${
                   active
-                  ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md scale-[1.05]"
-                  : "text-gray-600 hover:bg-gray-200"
+                    ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md scale-[1.05]"
+                    : "text-gray-600 hover:bg-gray-200"
                 }`}
               >
-                {month}
+                {month.shortLabel}
               </button>
-
             )
-
           })}
 
         </div>
@@ -327,7 +405,7 @@ export default function Dashboard() {
 
       <div className="mt-8 grid grid-cols-1 lg:grid-cols-2 gap-6">
 
-        <BalanceTrend financialMonths={financialMonths} />
+        <BalanceTrend financialMonths={financialMonthsOfYear} />
 
         <CreditCardsStatus financialRange={financialRange} />
 
@@ -337,7 +415,7 @@ export default function Dashboard() {
 
       <div className="mt-6 grid grid-cols-1 lg:grid-cols-2 gap-6">
 
-        <MonthlyFlow financialMonths={financialMonths} />
+        <MonthlyFlow financialMonths={financialMonthsOfYear} />
 
         <CategoryDonut financialRange={financialRange} />
 

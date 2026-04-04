@@ -20,7 +20,9 @@ type FinanceState = {
 
   selectedCategory: string | null
   setSelectedCategory: (category: string | null) => void
-
+selectedFinancialYear: number
+setSelectedFinancialYear: (year: number) => void
+  
   loadTransactions: (userId: string) => Promise<void>
   addTransaction: (t: Transaction, userId: string) => Promise<void>
   updateTransaction: (id: string, t: Transaction) => Promise<void>
@@ -35,22 +37,42 @@ export const useFinanceStore = create<FinanceState>((set) => ({
 
   setSelectedCategory: (category) =>
     set({ selectedCategory: category }),
+  selectedFinancialYear: new Date().getFullYear(),
 
+  setSelectedFinancialYear: (year) =>
+    set({ selectedFinancialYear: year }),
   loadTransactions: async (userId) => {
+    const pageSize = 1000
+    let from = 0
+    let allTransactions: Transaction[] = []
 
-    const { data, error } = await supabase
-      .from("transactions")
-      .select("*")
-      .eq("user_id", userId)
-      .order("date", { ascending: false })
+    while (true) {
+      const { data, error } = await supabase
+        .from("transactions")
+        .select("*")
+        .eq("user_id", userId)
+        .order("date", { ascending: false })
+        .range(from, from + pageSize - 1)
 
-    if (error) {
-      console.error(error)
-      return
+      if (error) {
+        console.error(error)
+        return
+      }
+
+      if (!data || data.length === 0) {
+        break
+      }
+
+      allTransactions = [...allTransactions, ...(data as Transaction[])]
+
+      if (data.length < pageSize) {
+        break
+      }
+
+      from += pageSize
     }
 
-    set({ transactions: data as Transaction[] })
-
+    set({ transactions: allTransactions })
   },
 
   addTransaction: async (transaction, userId) => {

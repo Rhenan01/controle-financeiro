@@ -21,7 +21,7 @@ export default function NewTransactionModal({ open, onClose, financialMonths }: 
   const updateTransaction = useFinanceStore((s) => s.updateTransaction)
 
   const [editId, setEditId] = useState<string | null>(null)
-
+  const [isSaving, setIsSaving] = useState(false)
   const [data, setData] = useState("")
   const [tipo, setTipo] = useState("")
   const [descricao, setDescricao] = useState("")
@@ -255,20 +255,168 @@ function handleEdit(event: any) {
 
     return originalDate
   }
-  async function handleSave() {
+  function isFormValid() {
+    if (!data || !tipo || !descricao || !valor || !status || !formaPagamento) {
+      return false
+    }
 
+    const valorNumerico = Number(valor.replace(/\D/g, "")) / 100
+    if (valorNumerico <= 0) return false
+
+    if ((formaPagamento === "CRÉDITO" || formaPagamento === "DÉBITO") && !cartao) {
+      return false
+    }
+
+    const temParcelaAtual = !!parcelaAtual.trim()
+    const temParcelaTotal = !!parcelaTotal.trim()
+
+    if ((temParcelaAtual && !temParcelaTotal) || (!temParcelaAtual && temParcelaTotal)) {
+      return false
+    }
+
+    if (temParcelaAtual && temParcelaTotal) {
+      const atual = Number(parcelaAtual)
+      const total = Number(parcelaTotal)
+
+      if (
+        Number.isNaN(atual) ||
+        Number.isNaN(total) ||
+        atual <= 0 ||
+        total <= 0 ||
+        atual > total
+      ) {
+        return false
+      }
+    }
+
+    if (gerarEstornoReembolso && !descricaoEstornoReembolso) {
+      return false
+    }
+
+    if (ativarDesconto) {
+      const valorDescontoNumerico = Number(valorDesconto.replace(/\D/g, "")) / 100
+
+      if (!valorDesconto || valorDescontoNumerico <= 0) return false
+      if (!dataDesconto) return false
+      if (valorDescontoNumerico >= valorNumerico) return false
+    }
+
+    return true
+  }
+  function validateForm() {
+    if (!data) {
+      alert("Preencha a data.")
+      return false
+    }
+
+    if (!tipo) {
+      alert("Selecione o tipo.")
+      return false
+    }
+
+    if (!descricao) {
+      alert("Selecione a descrição.")
+      return false
+    }
+
+    const valorNumerico = Number(valor.replace(/\D/g, "")) / 100
+    if (!valor || valorNumerico <= 0) {
+      alert("Informe um valor válido.")
+      return false
+    }
+
+    if (!status) {
+      alert("Selecione o status.")
+      return false
+    }
+
+    if (!formaPagamento) {
+      alert("Selecione a forma de pagamento.")
+      return false
+    }
+
+    if ((formaPagamento === "CRÉDITO" || formaPagamento === "DÉBITO") && !cartao) {
+      alert("Selecione o cartão.")
+      return false
+    }
+
+    const temParcelaAtual = !!parcelaAtual.trim()
+    const temParcelaTotal = !!parcelaTotal.trim()
+
+    if (temParcelaAtual && !temParcelaTotal) {
+      alert("Preencha o total de parcelas.")
+      return false
+    }
+
+    if (!temParcelaAtual && temParcelaTotal) {
+      alert("Preencha a parcela atual.")
+      return false
+    }
+
+    if (temParcelaAtual && temParcelaTotal) {
+      const atual = Number(parcelaAtual)
+      const total = Number(parcelaTotal)
+
+      if (
+        Number.isNaN(atual) ||
+        Number.isNaN(total) ||
+        atual <= 0 ||
+        total <= 0 ||
+        !Number.isInteger(atual) ||
+        !Number.isInteger(total)
+      ) {
+        alert("As parcelas devem ser números inteiros maiores que zero.")
+        return false
+      }
+
+      if (atual > total) {
+        alert("A parcela atual não pode ser maior que o total de parcelas.")
+        return false
+      }
+    }
+
+    if (gerarEstornoReembolso && !descricaoEstornoReembolso) {
+      alert("Selecione uma opção de estorno/reembolso.")
+      return false
+    }
+
+    if (ativarDesconto) {
+      const valorDescontoNumerico = Number(valorDesconto.replace(/\D/g, "")) / 100
+
+      if (!valorDesconto || valorDescontoNumerico <= 0) {
+        alert("Informe um valor de desconto válido.")
+        return false
+      }
+
+      if (!dataDesconto) {
+        alert("Selecione a data do desconto.")
+        return false
+      }
+
+      if (valorDescontoNumerico >= valorNumerico) {
+        alert("O valor do desconto deve ser menor que o valor atual do lançamento.")
+        return false
+      }
+    }
+
+    return true
+  }
+  async function handleSave() {
+    if (isSaving) return
+
+    setIsSaving(true)
+
+    try {
     const { data: authData } = await supabase.auth.getUser()
     const user = authData.user
 
     if (!user) return
 
+    if (!validateForm()) return
+
     const valorNumerico = Number(valor.replace(/\D/g, "")) / 100
 
-    if (gerarEstornoReembolso && !descricaoEstornoReembolso) {
-    alert("Selecione uma opção de estorno/reembolso.")
-    return
-}
-    if (!editId && formaPagamento === "CRÉDITO" && parcelaTotal) {
+    if (!editId && (formaPagamento === "CRÉDITO" || formaPagamento === "PIX") && parcelaTotal) {
 
       const total = Number(parcelaTotal)
       const atual = Number(parcelaAtual || 1)
@@ -323,22 +471,6 @@ function handleEdit(event: any) {
   if (editId) {
     const valorDescontoNumerico = Number(valorDesconto.replace(/\D/g, "")) / 100
 
-    if (ativarDesconto) {
-      if (!dataDesconto) {
-        alert("Selecione a data do desconto.")
-        return
-      }
-
-      if (valorDescontoNumerico <= 0) {
-        alert("Informe um valor de desconto válido.")
-        return
-      }
-
-      if (valorDescontoNumerico >= valorNumerico) {
-        alert("O valor do desconto deve ser menor que o valor atual do lançamento.")
-        return
-      }
-    }
     const valorFinalPrincipal = ativarDesconto
   ? valorNumerico - valorDescontoNumerico
   : valorNumerico
@@ -355,7 +487,7 @@ function handleEdit(event: any) {
           ? cartao
           : undefined,
       installment:
-        formaPagamento === "CRÉDITO" && parcelaTotal
+        (formaPagamento === "CRÉDITO" || formaPagamento === "PIX") && parcelaTotal
           ? `${parcelaAtual}/${parcelaTotal}`
           : undefined
     }
@@ -510,8 +642,13 @@ function handleEdit(event: any) {
 
     handleClose()
 
+   } catch (error) {
+    console.error("Erro ao salvar lançamento:", error)
+    alert("Ocorreu um erro ao salvar o lançamento.")
+  } finally {
+    setIsSaving(false)
   }
-
+}
 
   return (
 
@@ -608,7 +745,7 @@ function handleEdit(event: any) {
                 setCartao("")
               }
 
-              if (novoPagamento !== "CRÉDITO") {
+              if (novoPagamento !== "CRÉDITO" && novoPagamento !== "PIX") {
                 setParcelaAtual("")
                 setParcelaTotal("")
               }
@@ -644,7 +781,7 @@ function handleEdit(event: any) {
           )}
 
 
-          {formaPagamento === "CRÉDITO" && (
+          {(formaPagamento === "CRÉDITO" || formaPagamento === "PIX") && (
 
             <div className="grid grid-cols-2 gap-3">
 
@@ -751,12 +888,26 @@ function handleEdit(event: any) {
             Cancelar
           </button>
 
-          <button
-            onClick={handleSave}
-            className="px-5 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 active:scale-95 transition"
-          >
-            Salvar
-          </button>
+<button
+  onClick={handleSave}
+  disabled={isSaving || !isFormValid()}
+  className={`
+    px-5 py-2 text-sm text-white rounded-xl transition-all duration-300
+
+    ${(isSaving || !isFormValid())
+      ? "bg-gray-300 text-gray-500 cursor-not-allowed opacity-80"
+      : "bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 hover:shadow-xl hover:-translate-y-0.5 active:scale-95"}
+  `}
+>
+  {isSaving ? (
+    <span className="flex items-center gap-2">
+      <span className="w-4 h-4 border-2 border-white/70 border-t-transparent rounded-full animate-spin" />
+      Salvando...
+    </span>
+  ) : (
+    "Salvar"
+  )}
+</button>
 
         </div>
 
