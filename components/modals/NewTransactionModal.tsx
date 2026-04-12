@@ -32,6 +32,7 @@ export default function NewTransactionModal({ open, onClose, financialMonths }: 
 
   const [parcelaAtual, setParcelaAtual] = useState("")
   const [parcelaTotal, setParcelaTotal] = useState("")
+  const [installmentOriginal, setInstallmentOriginal] = useState<string | null>(null)
 
   const [descriptions,setDescriptions] = useState<string[]>([])
   const [payments,setPayments] = useState<string[]>([])
@@ -57,6 +58,7 @@ export default function NewTransactionModal({ open, onClose, financialMonths }: 
     setCartao("")
     setParcelaAtual("")
     setParcelaTotal("")
+    setInstallmentOriginal(null)
     setGerarEstornoReembolso(false)
     setDescricaoEstornoReembolso("")
     setAtivarDesconto(false)
@@ -161,9 +163,11 @@ function handleEdit(event: any) {
     const [atual, total] = t.installment.split("/")
     setParcelaAtual(atual)
     setParcelaTotal(total)
+    setInstallmentOriginal(t.installment)
   } else {
     setParcelaAtual("")
     setParcelaTotal("")
+    setInstallmentOriginal(null)
   }
 
   if (t.related_transaction_id && t.related_transaction_role === "PRINCIPAL") {
@@ -199,24 +203,61 @@ function handleEdit(event: any) {
 
 
   useEffect(() => {
-
-    function handleEsc(e: KeyboardEvent) {
-
+    async function handleKeyDown(e: KeyboardEvent) {
       if (e.key === "Escape") {
         handleClose()
+        return
       }
 
+      if (e.key === "Enter") {
+        const target = e.target as HTMLElement | null
+        const tagName = target?.tagName?.toLowerCase()
+
+        const isButton = tagName === "button"
+        const isTextarea = tagName === "textarea"
+
+        if (isButton || isTextarea) return
+        if (isSaving) return
+        if (!isFormValid()) return
+
+        e.preventDefault()
+        await handleSave()
+      }
     }
 
     if (open) {
-      window.addEventListener("keydown", handleEsc)
+      window.addEventListener("keydown", handleKeyDown)
     }
 
     return () => {
-      window.removeEventListener("keydown", handleEsc)
+      window.removeEventListener("keydown", handleKeyDown)
     }
+  }, [
+    open,
+    isSaving,
+    data,
+    tipo,
+    descricao,
+    valor,
+    status,
+    formaPagamento,
+    cartao,
+    parcelaAtual,
+    parcelaTotal,
+    gerarEstornoReembolso,
+    descricaoEstornoReembolso,
+    ativarDesconto,
+    valorDesconto,
+    dataDesconto
+  ])
 
-  }, [open])
+  useEffect(() => {
+    if (formaPagamento !== "CRÉDITO" && formaPagamento !== "PIX") {
+      setParcelaAtual("")
+      setParcelaTotal("")
+      setInstallmentOriginal(null)
+    }
+  }, [formaPagamento])
 
   const estornoReembolsoOptions = descriptions.filter((d: string) => {
   const texto = d.toUpperCase().trim()
@@ -474,6 +515,15 @@ function handleEdit(event: any) {
     const valorFinalPrincipal = ativarDesconto
   ? valorNumerico - valorDescontoNumerico
   : valorNumerico
+  let installmentFinal: string | null = null
+
+  if (formaPagamento === "CRÉDITO" || formaPagamento === "PIX") {
+    if (parcelaAtual.trim() && parcelaTotal.trim()) {
+      installmentFinal = `${parcelaAtual}/${parcelaTotal}`
+    } else {
+      installmentFinal = installmentOriginal
+    }
+  }
     const transaction = {
       id: editId,
       date: data,
@@ -486,26 +536,20 @@ function handleEdit(event: any) {
         formaPagamento === "CRÉDITO" || formaPagamento === "DÉBITO"
           ? cartao
           : undefined,
-      installment:
-        (formaPagamento === "CRÉDITO" || formaPagamento === "PIX") && parcelaTotal
-          ? `${parcelaAtual}/${parcelaTotal}`
-          : undefined
-    }
+      installment: installmentFinal ?? undefined
+        }
 
     await updateTransaction(editId, transaction)
     await supabase
-  .from("transactions")
-  .update({
-    card:
-      formaPagamento === "CRÉDITO" || formaPagamento === "DÉBITO"
-        ? cartao
-        : null,
-    installment:
-      formaPagamento === "CRÉDITO" && parcelaTotal
-        ? `${parcelaAtual}/${parcelaTotal}`
-        : null
-  })
-  .eq("id", editId)
+      .from("transactions")
+      .update({
+        card:
+          formaPagamento === "CRÉDITO" || formaPagamento === "DÉBITO"
+            ? cartao
+            : null,
+        installment: installmentFinal
+      })
+      .eq("id", editId)
   if (ativarDesconto) {
     await addTransaction(
       {
@@ -544,9 +588,7 @@ function handleEdit(event: any) {
             status: status,
             payment: "PIX",
             card:  null,
-            installment:   formaPagamento === "CRÉDITO" && parcelaTotal
-    ? `${parcelaAtual}/${parcelaTotal}`
-    : null
+            installment: installmentFinal
           })
           .eq("id", current.related_transaction_id)
       } else {
@@ -796,7 +838,7 @@ function handleEdit(event: any) {
                 value={parcelaTotal || ""}
                 onChange={(e) => setParcelaTotal(e.target.value)}
                 placeholder="Total parcelas"
-                disabled={!!editId}
+                disabled={!!editId && !!installmentOriginal}
                 className={`${inputStyle} disabled:bg-gray-100`}
               />
 

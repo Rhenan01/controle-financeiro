@@ -2,7 +2,15 @@
 
 import { useState, useMemo, useEffect, Fragment } from "react"
 import { useFinanceStore } from "../../store/financeStore"
-import { Pencil, Trash2 } from "lucide-react"
+import { 
+  Pencil, 
+  Trash2, 
+  X, 
+  CalendarDays, 
+  BadgeCheck, 
+  ListChecks,
+  Clock
+} from "lucide-react"
 import { supabase } from "@/lib/supabase"
 
 type Transaction = {
@@ -41,6 +49,10 @@ export default function TransactionsTable({ transactions }: Props) {
   const [sortDirection,setSortDirection] = useState<"asc" | "desc">("asc")
   const [collapsedDays,setCollapsedDays] = useState<Record<string,boolean>>({})
   const [mounted,setMounted] = useState(false)
+  const [bulkDate, setBulkDate] = useState("")
+  const [bulkStatus, setBulkStatus] = useState<"PAGO" | "PREVISTO" | "">("")
+  const [isBulkUpdating, setIsBulkUpdating] = useState(false)
+  const [bulkValue, setBulkValue] = useState("")
 
   const [cards,setCards] = useState<any[]>([])
   const loadTransactions = useFinanceStore((s) => s.loadTransactions)
@@ -334,6 +346,11 @@ const selectedTotal = useMemo(()=>{
     }
 
   }
+  function clearSelection() {
+    setSelected([])
+    setBulkDate("")
+    setBulkStatus("")
+  }
   async function deleteWithRelated(transaction: Transaction) {
     const idsToDelete = new Set<string>()
 
@@ -382,6 +399,63 @@ const selectedTotal = useMemo(()=>{
 
     setSelected([])
   }
+async function updateSelectedDate() {
+  if (!bulkDate || selected.length === 0 || isBulkUpdating) return
+
+  setIsBulkUpdating(true)
+
+  try {
+    const { error } = await supabase
+      .from("transactions")
+      .update({ date: bulkDate })
+      .in("id", selected)
+
+    if (error) {
+      console.error("Erro ao atualizar datas:", error)
+      alert("Não foi possível atualizar a data dos lançamentos selecionados.")
+      return
+    }
+
+    const userId = await getUserId()
+    if (userId) {
+      await loadTransactions(userId)
+    }
+
+    setBulkDate("")
+    setSelected([])
+  } finally {
+    setIsBulkUpdating(false)
+  }
+}
+
+  async function updateSelectedStatus() {
+    if (!bulkStatus || selected.length === 0 || isBulkUpdating) return
+
+    setIsBulkUpdating(true)
+
+    try {
+      const { error } = await supabase
+        .from("transactions")
+        .update({ status: bulkStatus })
+        .in("id", selected)
+
+      if (error) {
+        console.error("Erro ao atualizar status:", error)
+        alert("Não foi possível atualizar o status dos lançamentos selecionados.")
+        return
+      }
+
+      const userId = await getUserId()
+      if (userId) {
+        await loadTransactions(userId)
+      }
+
+      setBulkStatus("")
+      setSelected([])
+    } finally {
+      setIsBulkUpdating(false)
+    }
+  }
 
   function money(v:number){
 
@@ -391,7 +465,36 @@ const selectedTotal = useMemo(()=>{
     })
 
   }
+  async function updateSelectedValue() {
+    if (!bulkValue || selected.length === 0 || isBulkUpdating) return
 
+    const numericValue = Number(bulkValue.replace(/\D/g, "")) / 100
+
+    setIsBulkUpdating(true)
+
+    try {
+      const { error } = await supabase
+        .from("transactions")
+        .update({ value: numericValue })
+        .in("id", selected)
+
+      if (error) {
+        console.error("Erro ao atualizar valores:", error)
+        alert("Não foi possível atualizar o valor dos lançamentos.")
+        return
+      }
+
+      const userId = await getUserId()
+      if (userId) {
+        await loadTransactions(userId)
+      }
+
+      setBulkValue("")
+      setSelected([])
+    } finally {
+      setIsBulkUpdating(false)
+    }
+  }
   function formatDate(date:string){
 
     const [y,m,d] = date.split("-")
@@ -523,24 +626,131 @@ return unique.sort((a, b) => {
 
     <div className="bg-white border border-slate-200 rounded-xl overflow-visible">
 
-      {selected.length>0 &&(
+    {selected.length > 0 && (
 
-        <div className="flex justify-between items-center p-3 bg-blue-50 border-b sticky top-[119px] z-30">
+      <div className="sticky top-[119px] z-30 border-b border-slate-200 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/80 shadow-sm">
+        <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
 
-          <span className="text-sm text-blue-700 font-medium">
-            {selected.length} selecionados • Total: {money(selectedTotal)}
-          </span>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 rounded-full bg-blue-50 px-3 py-1.5 border border-blue-100">
+              <ListChecks size={16} className="text-blue-600" />
+              <span className="text-sm font-medium text-slate-700">
+                {selected.length} selecionados
+              </span>
+              <span className="text-sm text-slate-500">•</span>
+              <span className="text-sm font-semibold text-blue-700">
+                {money(selectedTotal)}
+              </span>
+            </div>
 
-          <button
-            onClick={deleteSelected}
-            className="text-sm text-red-600 hover:underline"
-          >
-            Excluir selecionados
-          </button>
+            <button
+              onClick={clearSelection}
+              className="inline-flex items-center justify-center w-9 h-9 rounded-full border border-slate-200 bg-white text-slate-500 hover:text-slate-700 hover:bg-slate-50 transition"
+              title="Limpar seleção"
+            >
+              <X size={16} />
+            </button>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+
+            <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-2 py-1.5 shadow-sm">
+              <CalendarDays size={16} className="text-slate-500" />
+              <input
+                type="date"
+                value={bulkDate}
+                onChange={(e) => setBulkDate(e.target.value)}
+                className="bg-transparent text-sm text-slate-700 outline-none"
+              />
+              <button
+                onClick={updateSelectedDate}
+                disabled={!bulkDate || isBulkUpdating}
+                className="inline-flex items-center gap-1 rounded-lg bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-indigo-700 disabled:bg-slate-300 disabled:cursor-not-allowed transition"
+              >
+                Aplicar
+              </button>
+            </div>
+
+            <div className="flex items-center gap-1 rounded-xl border border-slate-200 bg-white p-1 shadow-sm">
+
+              {/* PREVISTO */}
+              <button
+                onClick={() => setBulkStatus("PREVISTO")}
+                className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm font-medium transition ${
+                  bulkStatus === "PREVISTO"
+                    ? "bg-amber-100 text-amber-700"
+                    : "text-slate-500 hover:bg-slate-100"
+                }`}
+              >
+                <Clock size={14} />
+                Previsto
+              </button>
+
+              {/* PAGO */}
+              <button
+                onClick={() => setBulkStatus("PAGO")}
+                className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm font-medium transition ${
+                  bulkStatus === "PAGO"
+                    ? "bg-emerald-100 text-emerald-700"
+                    : "text-slate-500 hover:bg-slate-100"
+                }`}
+              >
+                <BadgeCheck size={14} />
+                Pago
+              </button>
+
+              {/* BOTÃO APLICAR */}
+              <button
+                onClick={updateSelectedStatus}
+                disabled={!bulkStatus || isBulkUpdating}
+                className="inline-flex items-center gap-1 rounded-lg bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-indigo-700 disabled:bg-slate-300 disabled:cursor-not-allowed transition"
+              >
+                Aplicar
+              </button>
+
+            </div>
+            <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-2 py-1.5 shadow-sm">
+
+              <span className="text-slate-500 text-sm">R$</span>
+
+              <input
+                value={bulkValue}
+                onChange={(e) => {
+                  const onlyNumbers = e.target.value.replace(/\D/g, "")
+                  const formatted = (Number(onlyNumbers) / 100).toLocaleString("pt-BR", {
+                    style: "currency",
+                    currency: "BRL"
+                  })
+                  setBulkValue(formatted)
+                }}
+                placeholder="Valor"
+                className="bg-transparent text-sm text-slate-700 outline-none w-28"
+              />
+
+              <button
+                onClick={updateSelectedValue}
+                disabled={!bulkValue || isBulkUpdating}
+                className="inline-flex items-center gap-1 rounded-lg bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-indigo-700 disabled:bg-slate-300 disabled:cursor-not-allowed transition"
+              >
+                Aplicar
+              </button>
+
+            </div>
+            <button
+              onClick={deleteSelected}
+              disabled={isBulkUpdating}
+              className="inline-flex items-center gap-2 rounded-xl bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:bg-slate-300 disabled:cursor-not-allowed transition shadow-sm"
+            >
+              <Trash2 size={16} />
+              <span>Excluir</span>
+            </button>
+
+          </div>
 
         </div>
+      </div>
 
-      )}
+    )}
 
       <table className="w-full text-sm">
 
@@ -664,7 +874,14 @@ return unique.sort((a, b) => {
 
                 {!collapsed && list.map(t=>(
 
-                  <tr key={t.id} className="border-t border-slate-100 hover:bg-slate-50">
+                  <tr
+  key={t.id}
+  className={`border-t border-slate-100 transition-colors ${
+    selected.includes(t.id)
+      ? "bg-blue-50/70 hover:bg-blue-100/70"
+      : "hover:bg-slate-50"
+  }`}
+>
 
                     <td className="p-3 text-center">
 

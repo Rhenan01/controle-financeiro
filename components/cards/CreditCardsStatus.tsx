@@ -120,7 +120,14 @@ export default function CreditCardsStatus({financialRange}:Props){
     }
 
   }
+  function getCardDueDateInRange(rangeStart: string, rangeEnd: string, dueDay: number) {
+    const [year, month] = rangeEnd.split("-").map(Number)
 
+    const lastDayOfMonth = new Date(year, month, 0).getDate()
+    const safeDueDay = Math.min(dueDay, lastDayOfMonth)
+
+    return `${year}-${String(month).padStart(2, "0")}-${String(safeDueDay).padStart(2, "0")}`
+  }
   const cardsWithInvoice = useMemo(()=>{
 
     const today = new Date().toISOString().slice(0,10)
@@ -130,6 +137,11 @@ export default function CreditCardsStatus({financialRange}:Props){
 
     const list = cards.map(card=>{
 
+      const cardRangeEnd = getCardDueDateInRange(
+        financialRange.start,
+        financialRange.end,
+        card.due_day
+      )
       const invoice = transactions
         .filter(t=>{
 
@@ -141,7 +153,7 @@ export default function CreditCardsStatus({financialRange}:Props){
 
           const inRange =
             t.date >= financialRange.start &&
-            t.date <= financialRange.end
+            t.date <= cardRangeEnd
 
           return sameCard && credit && inRange
 
