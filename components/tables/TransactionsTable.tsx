@@ -422,7 +422,6 @@ async function updateSelectedDate() {
     }
 
     setBulkDate("")
-    setSelected([])
   } finally {
     setIsBulkUpdating(false)
   }
@@ -451,7 +450,6 @@ async function updateSelectedDate() {
       }
 
       setBulkStatus("")
-      setSelected([])
     } finally {
       setIsBulkUpdating(false)
     }
@@ -490,7 +488,6 @@ async function updateSelectedDate() {
       }
 
       setBulkValue("")
-      setSelected([])
     } finally {
       setIsBulkUpdating(false)
     }

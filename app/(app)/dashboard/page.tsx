@@ -65,6 +65,18 @@ export default function Dashboard() {
   const financialMonths = useMemo(() => {
     if (salaryDays.length < 2) return []
 
+    function parseDate(dateStr: string) {
+      const [year, month, day] = dateStr.split("-").map(Number)
+      return new Date(year, month - 1, day)
+    }
+
+    function toISO(date: Date) {
+      const year = date.getFullYear()
+      const month = String(date.getMonth() + 1).padStart(2, "0")
+      const day = String(date.getDate()).padStart(2, "0")
+      return `${year}-${month}-${day}`
+    }
+
     const months: {
       start: string
       end: string
@@ -78,27 +90,60 @@ export default function Dashboard() {
       const start = salaryDays[i]
       const next = salaryDays[i + 1]
 
-      const endDate = new Date(next)
+      const startDate = parseDate(start)
+      const nextDate = parseDate(next)
+
+      const endDate = new Date(nextDate)
       endDate.setDate(endDate.getDate() - 1)
 
-      const end = endDate.toISOString().slice(0, 10)
+      const end = toISO(endDate)
 
-      const referenceDate = new Date(endDate)
+      // Conta quantos dias do período caem em cada mês/ano
+      const daysPerMonth = new Map<string, number>()
+      const cursor = new Date(startDate)
 
-      const shortLabel = referenceDate
+      while (cursor <= endDate) {
+        const key = `${cursor.getFullYear()}-${cursor.getMonth()}` // ex: 2026-4
+        daysPerMonth.set(key, (daysPerMonth.get(key) ?? 0) + 1)
+        cursor.setDate(cursor.getDate() + 1)
+      }
+
+      // Em caso de empate, prefere o mês do endDate
+      const preferredKey = `${endDate.getFullYear()}-${endDate.getMonth()}`
+
+      let chosenKey = ""
+      let maxDays = -1
+
+      for (const [key, count] of daysPerMonth.entries()) {
+        if (
+          count > maxDays ||
+          (count === maxDays && key === preferredKey)
+        ) {
+          chosenKey = key
+          maxDays = count
+        }
+      }
+
+      const [yearStr, monthIndexStr] = chosenKey.split("-")
+      const chosenYear = Number(yearStr)
+      const chosenMonthIndex = Number(monthIndexStr)
+
+      const referenceDate = new Date(chosenYear, chosenMonthIndex, 1)
+
+      const shortLabelBase = referenceDate
         .toLocaleDateString("pt-BR", { month: "short" })
         .replace(".", "")
 
-      const month = referenceDate.getMonth() + 1
-      const year = referenceDate.getFullYear()
+      const shortLabel =
+        shortLabelBase.charAt(0).toUpperCase() + shortLabelBase.slice(1)
 
       months.push({
         start,
         end,
-        shortLabel: shortLabel.charAt(0).toUpperCase() + shortLabel.slice(1),
-        label: `${shortLabel.charAt(0).toUpperCase() + shortLabel.slice(1)}/${year}`,
-        year,
-        month
+        shortLabel,
+        label: `${shortLabel}/${chosenYear}`,
+        year: chosenYear,
+        month: chosenMonthIndex + 1
       })
     }
 

@@ -33,7 +33,7 @@ export default function Sidebar() {
     loadUser()
 
   },[])
-
+  const displayName = user?.user_metadata?.display_name || user?.email || "Usuário"
   async function handleLogout(){
 
     await supabase.auth.signOut()
@@ -113,16 +113,15 @@ export default function Sidebar() {
           <div className="flex items-center gap-3">
 
             <div className="w-9 h-9 rounded-full bg-white/20 flex items-center justify-center text-sm font-semibold flex-shrink-0">
-              {user.email?.[0].toUpperCase()}
+              {displayName?.[0]?.toUpperCase()}
             </div>
 
             <div className="flex-1 text-xs min-w-0">
-
               <p
                 className="opacity-80 truncate"
-                title={user.email}
+                title={displayName}
               >
-                {user.email}
+                {displayName}
               </p>
 
               <button
