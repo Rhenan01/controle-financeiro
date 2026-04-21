@@ -9,7 +9,10 @@ import {
   CalendarDays, 
   BadgeCheck, 
   ListChecks,
-  Clock
+  Clock,
+  AlertTriangle,
+  Link2,
+  ShieldAlert
 } from "lucide-react"
 import { supabase } from "@/lib/supabase"
 
@@ -56,6 +59,18 @@ export default function TransactionsTable({ transactions }: Props) {
 
   const [cards,setCards] = useState<any[]>([])
   const loadTransactions = useFinanceStore((s) => s.loadTransactions)
+
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false)
+  const [deleteTarget, setDeleteTarget] = useState<Transaction | null>(null)
+  const [deleteAlsoRelated, setDeleteAlsoRelated] = useState(true)
+  const [isDeleting, setIsDeleting] = useState(false)
+  function getLinkedTransaction(transaction: Transaction) {
+    if (transaction.related_transaction_id) {
+      return transactions.find((t) => t.id === transaction.related_transaction_id) || null
+    }
+
+    return transactions.find((t) => t.related_transaction_id === transaction.id) || null
+  }
   async function getUserId() {
 
     const { data } = await supabase.auth.getUser()
@@ -351,25 +366,74 @@ const selectedTotal = useMemo(()=>{
     setBulkDate("")
     setBulkStatus("")
   }
-  async function deleteWithRelated(transaction: Transaction) {
-    const idsToDelete = new Set<string>()
+  function askDeleteTransaction(transaction: Transaction) {
+    const linked = getLinkedTransaction(transaction)
 
-    idsToDelete.add(transaction.id)
-
-    if (transaction.related_transaction_id) {
-      idsToDelete.add(transaction.related_transaction_id)
+    if (linked) {
+      setDeleteTarget(transaction)
+      setDeleteAlsoRelated(true)
+      setDeleteModalOpen(true)
+      return
     }
 
-    const relatedBack = transactions.find(
-      (t) => t.related_transaction_id === transaction.id
-    )
+    deleteWithChoice(transaction, false)
+  }
+  async function confirmDeleteTransaction() {
+    if (!deleteTarget || isDeleting) return
 
-    if (relatedBack) {
-      idsToDelete.add(relatedBack.id)
+    setIsDeleting(true)
+
+    try {
+      await deleteWithChoice(deleteTarget, deleteAlsoRelated)
+      setDeleteModalOpen(false)
+      setDeleteTarget(null)
+      setDeleteAlsoRelated(true)
+    } finally {
+      setIsDeleting(false)
     }
+  }
+  async function deleteWithChoice(transaction: Transaction, deleteLinked: boolean) {
+    const linked = getLinkedTransaction(transaction)
+
+    const idsToDelete = deleteLinked && linked
+      ? [transaction.id, linked.id]
+      : [transaction.id]
 
     for (const id of idsToDelete) {
       await deleteTransaction(id)
+    }
+
+    if (!deleteLinked && linked) {
+      if (transaction.related_transaction_role === "PRINCIPAL") {
+        await supabase
+          .from("transactions")
+          .update({
+            related_transaction_id: null,
+            related_transaction_role: null
+          })
+          .eq("id", transaction.id)
+
+        await supabase
+          .from("transactions")
+          .update({
+            related_transaction_id: null,
+            related_transaction_role: null
+          })
+          .eq("id", linked.id)
+      } else if (transaction.related_transaction_role === "ESTORNO_REEMBOLSO") {
+        await supabase
+          .from("transactions")
+          .update({
+            related_transaction_id: null,
+            related_transaction_role: null
+          })
+          .eq("id", linked.id)
+      }
+    }
+
+    const userId = await getUserId()
+    if (userId) {
+      await loadTransactions(userId)
     }
   }
   async function deleteSelected() {
@@ -969,7 +1033,7 @@ return unique.sort((a, b) => {
                         </button>
 
                         <button
-                          onClick={() => deleteWithRelated(t)}
+                          onClick={() => askDeleteTransaction(t)}
                           className="
                           w-8 h-8
                           flex items-center justify-center
@@ -1001,8 +1065,95 @@ return unique.sort((a, b) => {
 
       </table>
 
+      {deleteModalOpen && deleteTarget && (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-900/45 backdrop-blur-sm p-4">
+          <div className="w-full max-w-md rounded-3xl border border-slate-200 bg-white shadow-2xl overflow-hidden">
+            <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 px-6 py-5 text-white">
+              <div className="flex items-center gap-3">
+                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white/10">
+                  <ShieldAlert size={22} />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold">Confirmar exclusão</h3>
+                  <p className="text-sm text-slate-300">
+                    Esse lançamento possui vínculo com outro lançamento.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="px-6 py-5 space-y-4">
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                <p className="text-sm text-slate-500 mb-1">Lançamento selecionado</p>
+                <p className="font-semibold text-slate-800">{deleteTarget.description}</p>
+                <p className="text-sm text-slate-500">
+                  {money(deleteTarget.value)} • {formatDate(deleteTarget.date)}
+                </p>
+              </div>
+
+              <label className="flex items-start gap-3 rounded-2xl border border-slate-200 p-4 hover:bg-slate-50 transition cursor-pointer">
+                <input
+                  type="radio"
+                  name="delete-linked-choice"
+                  checked={deleteAlsoRelated === true}
+                  onChange={() => setDeleteAlsoRelated(true)}
+                  className="mt-1"
+                />
+                <div>
+                  <span className="flex items-center gap-2 font-medium text-slate-800">
+                    <Link2 size={16} className="text-indigo-600" />
+                    Excluir também o lançamento vinculado
+                  </span>
+                  <p className="text-sm text-slate-500 mt-1">
+                    Principal e estorno/reembolso serão removidos juntos.
+                  </p>
+                </div>
+              </label>
+
+              <label className="flex items-start gap-3 rounded-2xl border border-slate-200 p-4 hover:bg-slate-50 transition cursor-pointer">
+                <input
+                  type="radio"
+                  name="delete-linked-choice"
+                  checked={deleteAlsoRelated === false}
+                  onChange={() => setDeleteAlsoRelated(false)}
+                  className="mt-1"
+                />
+                <div>
+                  <span className="flex items-center gap-2 font-medium text-slate-800">
+                    <AlertTriangle size={16} className="text-amber-600" />
+                    Excluir somente este lançamento
+                  </span>
+                  <p className="text-sm text-slate-500 mt-1">
+                    O vínculo será removido e o outro lançamento continuará existindo.
+                  </p>
+                </div>
+              </label>
+            </div>
+
+            <div className="flex justify-end gap-3 px-6 py-5 border-t border-slate-100 bg-slate-50">
+              <button
+                onClick={() => {
+                  setDeleteModalOpen(false)
+                  setDeleteTarget(null)
+                  setDeleteAlsoRelated(true)
+                }}
+                className="px-4 py-2 rounded-xl bg-white border border-slate-200 text-slate-700 hover:bg-slate-100 transition"
+              >
+                Cancelar
+              </button>
+
+              <button
+                onClick={confirmDeleteTransaction}
+                disabled={isDeleting}
+                className="px-4 py-2 rounded-xl bg-gradient-to-r from-red-600 to-rose-600 text-white hover:from-red-700 hover:to-rose-700 transition shadow-lg disabled:opacity-60"
+              >
+                {isDeleting ? "Excluindo..." : "Confirmar exclusão"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
-
   )
-
 }

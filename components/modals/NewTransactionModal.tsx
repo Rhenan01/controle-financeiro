@@ -42,6 +42,8 @@ export default function NewTransactionModal({ open, onClose, financialMonths }: 
   const [ativarDesconto, setAtivarDesconto] = useState(false)
   const [valorDesconto, setValorDesconto] = useState("")
   const [dataDesconto, setDataDesconto] = useState("")
+  const [dataEstornoReembolso, setDataEstornoReembolso] = useState("")
+  const [valorEstornoReembolso, setValorEstornoReembolso] = useState("")
 
   const inputStyle =
   "w-full border border-gray-300 rounded-lg p-2.5 text-sm text-slate-800 bg-white placeholder-slate-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
@@ -64,13 +66,30 @@ export default function NewTransactionModal({ open, onClose, financialMonths }: 
     setAtivarDesconto(false)
     setValorDesconto("")
     setDataDesconto("")
+    setDataEstornoReembolso("")
+    setValorEstornoReembolso("")
   }
 
   function handleClose() {
     resetForm()
     onClose()
   }
+  function getLastDayOfMonth(year: number, month1to12: number) {
+    return new Date(year, month1to12, 0).getDate()
+  }
 
+  function buildRefundDateForInstallmentMonth(
+    baseRefundDate: string,
+    principalDate: string
+  ) {
+    const [refundYear, refundMonth, refundDay] = baseRefundDate.split("-").map(Number)
+    const [principalYear, principalMonth] = principalDate.split("-").map(Number)
+
+    const lastDay = getLastDayOfMonth(principalYear, principalMonth)
+    const safeDay = Math.min(refundDay, lastDay)
+
+    return `${principalYear}-${String(principalMonth).padStart(2, "0")}-${String(safeDay).padStart(2, "0")}`
+  }
   const formatCurrency = (value: string) => {
 
     const number = value.replace(/\D/g, "")
@@ -92,6 +111,18 @@ export default function NewTransactionModal({ open, onClose, financialMonths }: 
   const handleDiscountValueChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const formatted = formatCurrency(e.target.value)
     setValorDesconto(formatted)
+  }
+
+  function getDefaultRefundDate(
+    originalDate: string,
+    paymentMethod: string,
+    financialMonths: { start: string; end: string; label: string }[]
+  ) {
+    return getLinkedRefundDate(originalDate, paymentMethod, financialMonths)
+  }
+  const handleRefundValueChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const formatted = formatCurrency(e.target.value)
+    setValorEstornoReembolso(formatted)
   }
   // carregar dados das configurações
   useEffect(()=>{
@@ -175,23 +206,55 @@ function handleEdit(event: any) {
 
     supabase
       .from("transactions")
-      .select("description")
+      .select("description, date, value")
       .eq("id", t.related_transaction_id)
       .maybeSingle()
       .then(({ data, error }) => {
         if (error) {
           console.error("Erro ao buscar lançamento relacionado:", error)
           setDescricaoEstornoReembolso("")
+          setDataEstornoReembolso(
+            getDefaultRefundDate(t.date, t.payment || "", financialMonths)
+          )
+          setValorEstornoReembolso(
+            Number(t.value || 0).toLocaleString("pt-BR", {
+              style: "currency",
+              currency: "BRL"
+            })
+          )
           return
         }
 
         setDescricaoEstornoReembolso(data?.description || "")
+        setDataEstornoReembolso(
+          data?.date || getDefaultRefundDate(t.date, t.payment || "", financialMonths)
+        )
+        setValorEstornoReembolso(
+          data?.value
+            ? Number(data.value).toLocaleString("pt-BR", {
+                style: "currency",
+                currency: "BRL"
+              })
+            : Number(t.value || 0).toLocaleString("pt-BR", {
+                style: "currency",
+                currency: "BRL"
+              })
+        )
       })
-  } else {
-    setGerarEstornoReembolso(false)
-    setDescricaoEstornoReembolso("")
-  }
-}
+      } else {
+        setGerarEstornoReembolso(false)
+        setDescricaoEstornoReembolso("")
+        setDataEstornoReembolso(
+          getDefaultRefundDate(t.date, t.payment || "", financialMonths)
+        )
+        setValorEstornoReembolso(
+          Number(t.value || 0).toLocaleString("pt-BR", {
+            style: "currency",
+            currency: "BRL"
+          })
+        )
+      }
+      }
 
     window.addEventListener("openEditTransaction", handleEdit)
 
@@ -201,6 +264,16 @@ function handleEdit(event: any) {
 
   }, [])
 
+  useEffect(() => {
+    if (!gerarEstornoReembolso) return
+
+    const baseDate = data || formatDateLocal(new Date())
+
+    setDataEstornoReembolso((prev) => {
+      if (prev) return prev
+      return getDefaultRefundDate(baseDate, formaPagamento, financialMonths)
+    })
+  }, [gerarEstornoReembolso, data, formaPagamento, financialMonths])
 
   useEffect(() => {
     async function handleKeyDown(e: KeyboardEvent) {
@@ -330,8 +403,12 @@ function handleEdit(event: any) {
       }
     }
 
-    if (gerarEstornoReembolso && !descricaoEstornoReembolso) {
-      return false
+    if (gerarEstornoReembolso) {
+      const valorEstornoNumerico = Number(valorEstornoReembolso.replace(/\D/g, "")) / 100
+
+      if (!descricaoEstornoReembolso) return false
+      if (!dataEstornoReembolso) return false
+      if (!valorEstornoReembolso || valorEstornoNumerico <= 0) return false
     }
 
     if (ativarDesconto) {
@@ -416,9 +493,21 @@ function handleEdit(event: any) {
       }
     }
 
-    if (gerarEstornoReembolso && !descricaoEstornoReembolso) {
-      alert("Selecione uma opção de estorno/reembolso.")
-      return false
+    if (gerarEstornoReembolso) {
+      const valorEstornoNumerico = Number(valorEstornoReembolso.replace(/\D/g, "")) / 100
+      if (!descricaoEstornoReembolso) {
+        alert("Selecione uma opção de estorno/reembolso.")
+        return false
+      }
+
+      if (!dataEstornoReembolso) {
+        alert("Selecione a data do estorno/reembolso.")
+        return false
+      }
+      if (!valorEstornoReembolso || valorEstornoNumerico <= 0) {
+        alert("Informe um valor de estorno/reembolso válido.")
+        return false
+      }
     }
 
     if (ativarDesconto) {
@@ -456,7 +545,7 @@ function handleEdit(event: any) {
     if (!validateForm()) return
 
     const valorNumerico = Number(valor.replace(/\D/g, "")) / 100
-
+    const valorEstornoNumerico = Number(valorEstornoReembolso.replace(/\D/g, "")) / 100
     if (!editId && (formaPagamento === "CRÉDITO" || formaPagamento === "PIX") && parcelaTotal) {
 
       const total = Number(parcelaTotal)
@@ -492,10 +581,12 @@ function handleEdit(event: any) {
           await addTransaction(
             {
               id: relatedId,
-              date: getLinkedRefundDate(principalDate, formaPagamento, financialMonths),
+              date: dataEstornoReembolso
+                ? buildRefundDateForInstallmentMonth(dataEstornoReembolso, principalDate)
+                : getLinkedRefundDate(principalDate, formaPagamento, financialMonths),
               type: "ENTRADA",
               description: descricaoEstornoReembolso,
-              value: valorNumerico,
+              value: valorEstornoNumerico,
               status: status as "PAGO" | "PREVISTO",
               payment: "PIX",
               card: undefined,
@@ -569,33 +660,68 @@ function handleEdit(event: any) {
       user.id
     )
   }
-    const { data: current } = await supabase
+    const { data: current, error: currentError } = await supabase
       .from("transactions")
       .select("related_transaction_id, related_transaction_role")
       .eq("id", editId)
       .single()
 
-  if (current?.related_transaction_role === "PRINCIPAL") {
-    if (current.related_transaction_id) {
-      if (gerarEstornoReembolso) {
+    if (currentError) {
+      throw currentError
+    }
+
+    const jaEraPrincipal = current?.related_transaction_role === "PRINCIPAL"
+    const relatedIdAtual = current?.related_transaction_id || null
+
+    if (gerarEstornoReembolso) {
+      if (jaEraPrincipal && relatedIdAtual) {
         await supabase
           .from("transactions")
           .update({
-            date: getLinkedRefundDate(data, formaPagamento, financialMonths),
+            date: dataEstornoReembolso,
             type: "ENTRADA",
             description: descricaoEstornoReembolso,
-            value: valorNumerico,
+            value: valorEstornoNumerico,
             status: status,
             payment: "PIX",
-            card:  null,
+            card: null,
             installment: installmentFinal
           })
-          .eq("id", current.related_transaction_id)
+          .eq("id", relatedIdAtual)
       } else {
+        const novoRelatedId = uuidv4()
+
+        await supabase
+          .from("transactions")
+          .update({
+            related_transaction_id: novoRelatedId,
+            related_transaction_role: "PRINCIPAL"
+          })
+          .eq("id", editId)
+
+        await addTransaction(
+          {
+            id: novoRelatedId,
+            date: dataEstornoReembolso,
+            type: "ENTRADA",
+            description: descricaoEstornoReembolso,
+            value: valorEstornoNumerico,
+            status: status as "PAGO" | "PREVISTO",
+            payment: "PIX",
+            card: undefined,
+            installment: installmentFinal ?? undefined,
+            related_transaction_id: editId,
+            related_transaction_role: "ESTORNO_REEMBOLSO"
+          },
+          user.id
+        )
+      }
+    } else {
+      if (jaEraPrincipal && relatedIdAtual) {
         await supabase
           .from("transactions")
           .delete()
-          .eq("id", current.related_transaction_id)
+          .eq("id", relatedIdAtual)
 
         await supabase
           .from("transactions")
@@ -605,35 +731,7 @@ function handleEdit(event: any) {
           })
           .eq("id", editId)
       }
-    } else if (gerarEstornoReembolso) {
-      const relatedId = uuidv4()
-
-      await supabase
-        .from("transactions")
-        .update({
-          related_transaction_id: relatedId,
-          related_transaction_role: "PRINCIPAL"
-        })
-        .eq("id", editId)
-
-      await addTransaction(
-        {
-          id: relatedId,
-          date:getLinkedRefundDate(data, formaPagamento, financialMonths),
-          type: "ENTRADA",
-          description: descricaoEstornoReembolso,
-          value: valorNumerico,
-          status: status as "PAGO" | "PREVISTO",
-          payment: "PIX",
-          card:  undefined,
-          installment: parcelaTotal ? `${parcelaAtual}/${parcelaTotal}` : undefined,
-          related_transaction_id: editId,
-          related_transaction_role: "ESTORNO_REEMBOLSO"
-        },
-        user.id
-      )
     }
-  } 
 } else {
     const principalId = uuidv4()
     const relatedId = gerarEstornoReembolso ? uuidv4() : null
@@ -659,10 +757,10 @@ function handleEdit(event: any) {
       await addTransaction(
         {
           id: relatedId,
-          date: getLinkedRefundDate(data, formaPagamento, financialMonths),
+          date: dataEstornoReembolso || getLinkedRefundDate(data, formaPagamento, financialMonths),
           type: "ENTRADA",
           description: descricaoEstornoReembolso,
-          value: valorNumerico,
+          value: valorEstornoNumerico,
           status: status as "PAGO" | "PREVISTO",
           payment: "PIX",
           card:undefined,
@@ -854,10 +952,23 @@ function handleEdit(event: any) {
               <input
                 type="checkbox"
                 checked={gerarEstornoReembolso}
+                disabled={ativarDesconto}
                 onChange={(e) => {
                   const checked = e.target.checked
                   setGerarEstornoReembolso(checked)
-                  if (!checked) setDescricaoEstornoReembolso("")
+
+                  if (checked) {
+                    setAtivarDesconto(false)
+                    setValorDesconto("")
+                    setDataDesconto("")
+                    setValorEstornoReembolso(valor || formatCurrency("0"))
+                    setDataEstornoReembolso(
+                      getDefaultRefundDate(data || formatDateLocal(new Date()), formaPagamento, financialMonths)
+                    )
+                  } else {
+                    setDescricaoEstornoReembolso("")
+                    setDataEstornoReembolso("")
+                  }
                 }}
                 className="w-4 h-4 accent-blue-600 cursor-pointer"
               />
@@ -865,18 +976,36 @@ function handleEdit(event: any) {
             </label>
 
             {gerarEstornoReembolso && (
-              <select
-                value={descricaoEstornoReembolso}
-                onChange={(e) => setDescricaoEstornoReembolso(e.target.value)}
-                className={inputStyle}
-              >
-                <option value="">Selecione o estorno/reembolso</option>
-                {estornoReembolsoOptions.map((d: string) => (
-                  <option key={d} value={d}>
-                    {d}
-                  </option>
-                ))}
-              </select>
+              <div className="grid gap-3">
+                <select
+                  value={descricaoEstornoReembolso}
+                  onChange={(e) => setDescricaoEstornoReembolso(e.target.value)}
+                  className={inputStyle}
+                >
+                  <option value="">Selecione o estorno/reembolso</option>
+                  {estornoReembolsoOptions.map((d: string) => (
+                    <option key={d} value={d}>
+                      {d}
+                    </option>
+                  ))}
+                </select>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <input
+                    type="date"
+                    value={dataEstornoReembolso}
+                    onChange={(e) => setDataEstornoReembolso(e.target.value)}
+                    className={inputStyle}
+                  />
+
+                  <input
+                    value={valorEstornoReembolso}
+                    onChange={handleRefundValueChange}
+                    placeholder="Valor do estorno"
+                    className={inputStyle}
+                  />
+                </div>
+              </div>
             )}
           </div>
         )}
@@ -886,11 +1015,16 @@ function handleEdit(event: any) {
               <input
                 type="checkbox"
                 checked={ativarDesconto}
+                disabled={gerarEstornoReembolso}
                 onChange={(e) => {
                   const checked = e.target.checked
                   setAtivarDesconto(checked)
 
                   if (checked) {
+                    setGerarEstornoReembolso(false)
+                    setDescricaoEstornoReembolso("")
+                    setDataEstornoReembolso("")
+
                     setDataDesconto(formatDateLocal(new Date()))
                   } else {
                     setValorDesconto("")
