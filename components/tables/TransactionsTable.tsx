@@ -687,131 +687,196 @@ return unique.sort((a, b) => {
 
     <div className="min-w-0 rounded-xl border border-slate-200 bg-white">
 
-    {selected.length > 0 && (
+{selected.length > 0 && (
+  <div className="border-b border-slate-200 bg-white/95 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-white/80 lg:sticky lg:top-[119px] lg:z-30">
+    <div className="space-y-3 px-3 py-3 sm:px-4 lg:space-y-2 lg:py-2 xl:space-y-3 xl:py-3">
+      {/* Resumo da seleção */}
+      <div className="flex min-w-0 items-center gap-2">
+        <div className="flex min-w-0 items-center gap-2 rounded-full border border-blue-100 bg-blue-50 px-3 py-1.5">
+          <ListChecks size={16} className="shrink-0 text-blue-600" />
 
-      <div className="border-b border-slate-200 bg-white/95 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-white/80 lg:sticky lg:top-[119px] lg:z-30">
-        <div className="flex flex-col gap-3 px-3 py-3 sm:px-4 lg:flex-row lg:flex-wrap lg:items-center lg:justify-between">
+          <span className="whitespace-nowrap text-sm font-medium text-slate-700">
+            {selected.length} selecionados
+          </span>
 
-          <div className="flex min-w-0 items-center gap-2">
-            <div className="flex items-center gap-2 rounded-full bg-blue-50 px-3 py-1.5 border border-blue-100">
-              <ListChecks size={16} className="text-blue-600" />
-              <span className="text-sm font-medium text-slate-700">
-                {selected.length} selecionados
-              </span>
-              <span className="text-sm text-slate-500">•</span>
-              <span className="text-sm font-semibold text-blue-700">
-                {money(selectedTotal)}
-              </span>
-            </div>
+          <span className="text-sm text-slate-500">
+            •
+          </span>
 
-            <button
-              onClick={clearSelection}
-              className="inline-flex items-center justify-center w-9 h-9 rounded-full border border-slate-200 bg-white text-slate-500 hover:text-slate-700 hover:bg-slate-50 transition"
-              title="Limpar seleção"
-            >
-              <X size={16} />
-            </button>
-          </div>
-
-          <div className="grid w-full grid-cols-1 gap-2 sm:grid-cols-2 lg:flex lg:w-auto lg:flex-wrap lg:items-center">
-
-            <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-2 py-1.5 shadow-sm">
-              <CalendarDays size={16} className="text-slate-500" />
-              <input
-                type="date"
-                value={bulkDate}
-                onChange={(e) => setBulkDate(e.target.value)}
-                className="bg-transparent text-sm text-slate-700 outline-none"
-              />
-              <button
-                onClick={updateSelectedDate}
-                disabled={!bulkDate || isBulkUpdating}
-                className="inline-flex items-center gap-1 rounded-lg bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-indigo-700 disabled:bg-slate-300 disabled:cursor-not-allowed transition"
-              >
-                Aplicar
-              </button>
-            </div>
-
-            <div className="flex items-center gap-1 rounded-xl border border-slate-200 bg-white p-1 shadow-sm">
-
-              {/* PREVISTO */}
-              <button
-                onClick={() => setBulkStatus("PREVISTO")}
-                className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm font-medium transition ${
-                  bulkStatus === "PREVISTO"
-                    ? "bg-amber-100 text-amber-700"
-                    : "text-slate-500 hover:bg-slate-100"
-                }`}
-              >
-                <Clock size={14} />
-                Previsto
-              </button>
-
-              {/* PAGO */}
-              <button
-                onClick={() => setBulkStatus("PAGO")}
-                className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm font-medium transition ${
-                  bulkStatus === "PAGO"
-                    ? "bg-emerald-100 text-emerald-700"
-                    : "text-slate-500 hover:bg-slate-100"
-                }`}
-              >
-                <BadgeCheck size={14} />
-                Pago
-              </button>
-
-              {/* BOTÃO APLICAR */}
-              <button
-                onClick={updateSelectedStatus}
-                disabled={!bulkStatus || isBulkUpdating}
-                className="inline-flex items-center gap-1 rounded-lg bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-indigo-700 disabled:bg-slate-300 disabled:cursor-not-allowed transition"
-              >
-                Aplicar
-              </button>
-
-            </div>
-            <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-2 py-1.5 shadow-sm">
-
-              <span className="text-slate-500 text-sm">R$</span>
-
-              <input
-                value={bulkValue}
-                onChange={(e) => {
-                  const onlyNumbers = e.target.value.replace(/\D/g, "")
-                  const formatted = (Number(onlyNumbers) / 100).toLocaleString("pt-BR", {
-                    style: "currency",
-                    currency: "BRL"
-                  })
-                  setBulkValue(formatted)
-                }}
-                placeholder="Valor"
-                className="bg-transparent text-sm text-slate-700 outline-none w-28"
-              />
-
-              <button
-                onClick={updateSelectedValue}
-                disabled={!bulkValue || isBulkUpdating}
-                className="inline-flex items-center gap-1 rounded-lg bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-indigo-700 disabled:bg-slate-300 disabled:cursor-not-allowed transition"
-              >
-                Aplicar
-              </button>
-
-            </div>
-            <button
-              onClick={deleteSelected}
-              disabled={isBulkUpdating}
-              className="inline-flex items-center gap-2 rounded-xl bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:bg-slate-300 disabled:cursor-not-allowed transition shadow-sm"
-            >
-              <Trash2 size={16} />
-              <span>Excluir</span>
-            </button>
-
-          </div>
-
+          <span className="truncate text-sm font-semibold text-blue-700">
+            {money(selectedTotal)}
+          </span>
         </div>
+
+        <button
+          type="button"
+          onClick={clearSelection}
+          className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 transition hover:bg-slate-50 hover:text-slate-700"
+          title="Limpar seleção"
+        >
+          <X size={16} />
+        </button>
+        <button
+          type="button"
+          onClick={deleteSelected}
+          disabled={isBulkUpdating}
+          className="
+            ml-auto hidden h-9 shrink-0
+            items-center justify-center gap-2
+            rounded-lg bg-red-600 px-4
+            text-sm font-medium text-white
+            shadow-sm transition
+            hover:bg-red-700
+            disabled:cursor-not-allowed disabled:bg-slate-300
+            lg:inline-flex xl:hidden
+          "
+        >
+          <Trash2 size={16} />
+          <span>Excluir</span>
+        </button>
       </div>
 
-    )}
+      {/* Ações em massa */}
+      <div
+        className="
+          grid w-full grid-cols-1 gap-2
+          sm:grid-cols-2
+          lg:grid-cols-3
+          xl:grid-cols-[minmax(250px,1fr)_minmax(280px,1fr)_minmax(220px,1fr)_110px]
+          xl:items-center
+        "
+      >
+        {/* Alterar data */}
+        <div className="grid h-12 w-full lg:h-10 xl:h-12 grid-cols-[minmax(0,1fr)_88px] items-center gap-2 rounded-xl border border-slate-200 bg-white px-2 shadow-sm">
+          <div className="flex min-w-0 items-center gap-2">
+            <CalendarDays
+              size={16}
+              className="shrink-0 text-slate-500"
+            />
+
+            <input
+              type="date"
+              value={bulkDate}
+              onChange={(e) => setBulkDate(e.target.value)}
+              className="w-full min-w-0 bg-transparent text-sm text-slate-700 outline-none"
+            />
+          </div>
+
+          <button
+            type="button"
+            onClick={updateSelectedDate}
+            disabled={!bulkDate || isBulkUpdating}
+            className="inline-flex h-9 w-[88px] lg:h-8 xl:h-9 items-center justify-center rounded-lg bg-indigo-600 px-3 text-sm font-medium text-white transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+          >
+            Aplicar
+          </button>
+        </div>
+
+        {/* Alterar status */}
+        <div className="grid h-12 w-full lg:h-10 xl:h-12 grid-cols-[minmax(0,1fr)_88px] items-center gap-2 rounded-xl border border-slate-200 bg-white px-2 shadow-sm">
+          <div className="grid h-9 min-w-0 grid-cols-2 gap-1 overflow-hidden lg:h-8 lg:grid-cols-[3fr_2fr] xl:h-9 xl:grid-cols-2">
+            <button
+              type="button"
+              onClick={() => setBulkStatus("PREVISTO")}
+              className={`flex h-9 w-full min-w-0 items-center justify-center gap-1 overflow-hidden rounded-lg px-2 text-xs font-medium outline-none transition focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-200 lg:h-8 lg:gap-0.5 lg:px-1 lg:text-[11px] xl:h-9 xl:gap-1 xl:px-2 xl:text-sm ${
+                bulkStatus === "PREVISTO"
+                  ? "bg-amber-100 text-amber-700"
+                  : "text-slate-500 hover:bg-slate-100"
+              }`}
+            >
+              <Clock className="h-3.5 w-3.5 shrink-0 lg:h-3 lg:w-3 xl:h-3.5 xl:w-3.5" />
+
+              <span className="truncate">
+                Previsto
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setBulkStatus("PAGO")}
+              className={`flex h-9 w-full min-w-0 items-center justify-center gap-1 overflow-hidden rounded-lg px-2 text-xs font-medium outline-none transition focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-200 lg:h-8 lg:gap-0.5 lg:px-1 lg:text-[11px] xl:h-9 xl:gap-1 xl:px-2 xl:text-sm ${
+                bulkStatus === "PAGO"
+                  ? "bg-emerald-100 text-emerald-700"
+                  : "text-slate-500 hover:bg-slate-100"
+              }`}
+            >
+              <BadgeCheck className="h-3.5 w-3.5 shrink-0 lg:h-3 lg:w-3 xl:h-3.5 xl:w-3.5" />
+
+              <span className="truncate">
+                Pago
+              </span>
+            </button>
+          </div>
+
+          <button
+            type="button"
+            onClick={updateSelectedStatus}
+            disabled={!bulkStatus || isBulkUpdating}
+            className="inline-flex h-9 w-[88px] lg:h-8 xl:h-9 items-center justify-center rounded-lg bg-indigo-600 px-3 text-sm font-medium text-white transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+          >
+            Aplicar
+          </button>
+        </div>
+
+        {/* Alterar valor */}
+        <div className="grid h-12 w-full lg:h-10 xl:h-12 grid-cols-[minmax(0,1fr)_88px] items-center gap-2 rounded-xl border border-slate-200 bg-white px-2 shadow-sm">
+          <div className="flex min-w-0 items-center gap-2">
+            <span className="shrink-0 text-sm text-slate-500">
+              R$
+            </span>
+
+            <input
+              value={bulkValue}
+              onChange={(e) => {
+                const onlyNumbers = e.target.value.replace(/\D/g, "")
+
+                const formatted = (
+                  Number(onlyNumbers) / 100
+                ).toLocaleString("pt-BR", {
+                  style: "currency",
+                  currency: "BRL"
+                })
+
+                setBulkValue(formatted)
+              }}
+              placeholder="Valor"
+              className="w-full min-w-0 bg-transparent text-sm text-slate-700 outline-none"
+            />
+          </div>
+
+          <button
+            type="button"
+            onClick={updateSelectedValue}
+            disabled={!bulkValue || isBulkUpdating}
+            className="inline-flex h-9 w-[88px] lg:h-8 xl:h-9 items-center justify-center rounded-lg bg-indigo-600 px-3 text-sm font-medium text-white transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+          >
+            Aplicar
+          </button>
+        </div>
+
+        {/* Excluir selecionados */}
+        <button
+          type="button"
+          onClick={deleteSelected}
+          disabled={isBulkUpdating}
+          className="
+            inline-flex h-12 w-full
+            items-center justify-center gap-2
+            rounded-xl bg-red-600 px-4
+            text-sm font-medium text-white
+            shadow-sm transition
+            hover:bg-red-700
+            disabled:cursor-not-allowed disabled:bg-slate-300
+            lg:hidden xl:inline-flex xl:w-[110px]
+          "
+        >
+          <Trash2 size={16} />
+          <span>Excluir</span>
+        </button>
+      </div>
+    </div>
+  </div>
+)}
 {/* VISUALIZAÇÃO PARA CELULAR E TABLET */}
 <div className="space-y-3 bg-slate-50/60 p-2 lg:hidden">
   {Object.entries(groupedByDate).map(([date, list]) => {
