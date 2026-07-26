@@ -337,8 +337,18 @@ function handleEdit(event: any) {
   return texto.startsWith("ESTORNO") || texto.startsWith("REEMBOLSO")
   })
 
-  if (!open) return null
+  useEffect(() => {
+    if (!open) return
 
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = "hidden"
+
+    return () => {
+      document.body.style.overflow = previousOverflow
+    }
+  }, [open])
+
+  if (!open) return null
 
 
 
@@ -792,32 +802,41 @@ function handleEdit(event: any) {
 
   return (
 
-    <div
-      onClick={handleClose}
-      className="fixed inset-0 bg-black/40 flex items-center justify-center z-50"
-    >
+      <div
+        onClick={handleClose}
+        className="fixed inset-0 z-[100] flex items-center justify-center overflow-y-auto bg-black/50 p-2 sm:p-4"
+      >
 
       <div
         onClick={(e) => e.stopPropagation()}
-        className="bg-white w-[520px] rounded-2xl shadow-xl p-7"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="transaction-modal-title"
+        className="flex max-h-[calc(100dvh-1rem)] w-full max-w-[520px] flex-col overflow-hidden rounded-2xl bg-white shadow-xl sm:max-h-[calc(100dvh-2rem)]"
       >
 
-        <div className="flex justify-between items-center mb-6">
+        <div className="flex shrink-0 items-center justify-between border-b border-slate-100 px-4 py-4 sm:px-6">
 
-          <h2 className="text-xl font-semibold text-slate-800">
+          <h2
+            id="transaction-modal-title"
+            className="text-lg font-semibold text-slate-800 sm:text-xl"
+          >
             {editId ? "Editar lançamento" : "Novo lançamento"}
           </h2>
 
           <button
+            type="button"
             onClick={handleClose}
-            className="text-slate-500 hover:text-slate-700 text-lg"
+            aria-label="Fechar modal"
+            className="flex h-9 w-9 items-center justify-center rounded-full text-lg text-slate-500 transition hover:bg-slate-100 hover:text-slate-700"
           >
             ✕
           </button>
 
-        </div>
+          </div>
 
-        <div className="grid gap-4">
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4 sm:px-6 sm:py-5">
+            <div className="grid gap-3">
 
           <input
             type="date"
@@ -1055,11 +1074,12 @@ function handleEdit(event: any) {
             )}
           </div>
         )}
-        <div className="flex justify-end gap-3 mt-8">
+        </div>
+        <div className="grid shrink-0 grid-cols-2 gap-2 border-t border-slate-100 bg-white px-4 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] sm:flex sm:justify-end sm:px-6 sm:py-4">
 
           <button
             onClick={handleClose}
-            className="px-4 py-2 text-sm bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition"
+            className="w-full rounded-lg bg-gray-200 px-4 py-2 text-sm text-gray-700 transition hover:bg-gray-300 sm:w-auto"
           >
             Cancelar
           </button>
@@ -1068,7 +1088,7 @@ function handleEdit(event: any) {
   onClick={handleSave}
   disabled={isSaving || !isFormValid()}
   className={`
-    px-5 py-2 text-sm text-white rounded-xl transition-all duration-300
+    w-full px-5 py-2 text-sm text-white rounded-xl sm:w-auto transition-all duration-300
 
     ${(isSaving || !isFormValid())
       ? "bg-gray-300 text-gray-500 cursor-not-allowed opacity-80"
