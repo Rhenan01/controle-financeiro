@@ -135,9 +135,9 @@ export default function CategoryDonut({financialRange}:Props){
 
   return(
 
-    <div className="bg-white rounded-2xl shadow-md p-6 h-[340px]">
+    <div className="min-w-0 rounded-2xl bg-white p-4 shadow-md sm:p-6">
 
-      <div className="flex justify-between items-center mb-6">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-2 sm:mb-6">
 
         <h2 className="text-lg font-semibold text-slate-800">
           Gastos por Categoria
@@ -149,9 +149,9 @@ export default function CategoryDonut({financialRange}:Props){
 
       </div>
 
-      <div className="grid grid-cols-[260px_1fr] items-center">
+      <div className="grid min-w-0 grid-cols-1 items-center gap-4 sm:grid-cols-[220px_minmax(0,1fr)]">
 
-        <div className="relative w-[240px] h-[240px]">
+        <div className="relative mx-auto h-[220px] w-[220px] sm:h-[240px] sm:w-[240px]">
 
           <ResponsiveContainer width="100%" height="100%">
 
@@ -161,8 +161,8 @@ export default function CategoryDonut({financialRange}:Props){
                 data={data}
                 dataKey="value"
                 nameKey="name"
-                innerRadius={80}
-                outerRadius={110}
+                innerRadius={72}
+                outerRadius={100}
                 paddingAngle={3}
                 cx="50%"
                 cy="50%"
@@ -220,7 +220,7 @@ export default function CategoryDonut({financialRange}:Props){
 
         {/* LEGENDA */}
 
-        <div className="flex flex-col gap-4 ml-auto pr-6 min-w-[200px] max-h-[240px] overflow-y-auto">
+        <div className="grid min-w-0 grid-cols-2 gap-2 sm:max-h-[240px] sm:grid-cols-1 sm:overflow-y-auto sm:pr-1">
 
           {data.map((item:any,index)=>{
 
@@ -231,23 +231,23 @@ export default function CategoryDonut({financialRange}:Props){
               <div
                 key={index}
                 onClick={()=>setSelectedCategory(item.name)}
-                className="flex items-center justify-between text-sm cursor-pointer hover:bg-slate-50 px-2 py-1 rounded"
+                className="flex min-w-0 cursor-pointer items-center justify-between gap-2 rounded px-2 py-1 text-xs hover:bg-slate-50 sm:text-sm"
               >
 
-                <div className="flex items-center gap-3">
+                <div className="flex min-w-0 items-center gap-2">
 
                   <div
-                    className="w-3 h-3 rounded-full"
+                    className="h-3 w-3 shrink-0 rounded-full"
                     style={{backgroundColor:COLORS[index % COLORS.length]}}
                   />
 
-                  <span className="text-slate-700">
+                  <span className="truncate text-slate-700">
                     {item.name}
                   </span>
 
                 </div>
 
-                <span className="text-slate-500 text-xs">
+                <span className="shrink-0 text-xs text-slate-500">
                   {percent}%
                 </span>
 

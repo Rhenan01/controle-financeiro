@@ -97,7 +97,7 @@ export default function TransactionsPreview({financialRange}:Props){
 
   return(
 
-    <div className="bg-white border border-gray-200 rounded-xl shadow p-5">
+    <div className="min-w-0 rounded-xl border border-gray-200 bg-white p-4 shadow sm:p-5">
 
       <div className="flex justify-between items-center mb-4">
 
@@ -123,15 +123,26 @@ export default function TransactionsPreview({financialRange}:Props){
 
       </div>
 
-      <table className="w-full text-sm">
+      <table className="w-full table-fixed text-sm">
 
         <thead className="text-gray-500 border-b">
 
           <tr>
-            <th className="text-left py-2">Data</th>
-            <th className="text-left">Descrição</th>
-            <th className="text-left">Categoria</th>
-            <th className="text-right">Valor</th>
+            <th className="w-[18%] py-2 pr-2 text-left">
+              Data
+            </th>
+
+            <th className="w-[48%] px-2 text-left sm:w-auto">
+              Descrição
+            </th>
+
+            <th className="hidden px-2 text-left sm:table-cell">
+              Categoria
+            </th>
+
+            <th className="w-[34%] pl-2 text-right sm:w-auto">
+              Valor
+            </th>
           </tr>
 
         </thead>
@@ -146,19 +157,23 @@ export default function TransactionsPreview({financialRange}:Props){
 
               <tr key={t.id} className="border-b last:border-none">
 
-                <td className="py-2 text-slate-700 font-medium">
+                <td className="py-3 pr-2 align-top text-xs font-medium text-slate-700 sm:text-sm">
                   {formatDate(t.date)}
                 </td>
 
-                <td className="text-slate-800 font-medium">
+                <td className="break-words px-2 py-3 align-top text-xs font-medium leading-tight text-slate-800 sm:text-sm">
                   {t.description}
+
+                  <span className="mt-1 block truncate text-[11px] font-normal text-gray-500 sm:hidden">
+                    {category}
+                  </span>
                 </td>
 
-                <td className="text-gray-500">
+                <td className="hidden px-2 py-3 align-top text-gray-500 sm:table-cell">
                   {category}
                 </td>
 
-                <td className={`text-right font-medium ${
+                <td className={`whitespace-nowrap py-3 pl-2 text-right align-top text-xs font-semibold sm:text-sm ${
                   t.type==="ENTRADA"
                   ? "text-emerald-600"
                   : "text-rose-500"

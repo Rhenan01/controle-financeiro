@@ -325,12 +325,9 @@ const financialRange = useMemo(() => {
 
   if (financialMonthsOfYear.length === 0) {
     return (
-      <div className="p-10">
+      <div className="w-full min-w-0 p-2 sm:p-4 lg:p-6">
         <div className="mb-4 bg-white/70 backdrop-blur-sm border border-gray-200 p-3 rounded-2xl shadow-sm">
-          <div className="flex items-center gap-3 flex-wrap">
-            <div className="px-2">
-
-            </div>
+          <div className="flex w-full flex-wrap items-center justify-start gap-3">
 
             {availableYears.map((year) => {
               const active = selectedYear === year
@@ -339,7 +336,7 @@ const financialRange = useMemo(() => {
                 <button
                   key={year}
                   onClick={() => setSelectedYear(year)}
-                  className={`min-w-[88px] px-4 py-2.5 text-sm font-semibold rounded-xl transition-all duration-300
+                  className={`min-w-[110px] flex-1 px-4 py-2.5 sm:flex-none text-sm font-semibold rounded-xl transition-all duration-300
                   ${
                     active
                       ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg scale-[1.04]"
@@ -366,13 +363,10 @@ if (!financialRange) return null
 
   return(
 
-    <div className="p-2">
+    <div className="w-full min-w-0 p-2 sm:p-4 lg:p-6">
 
     <div className="mb-4 bg-white/70 backdrop-blur-sm border border-gray-200 p-3 rounded-2xl shadow-sm">
-      <div className="flex items-center gap-3 flex-wrap">
-        <div className="px-2">
-
-        </div>
+      <div className="flex w-full flex-wrap items-center justify-start gap-3">
 
         {availableYears.map((year) => {
           const active = selectedYear === year
@@ -381,7 +375,7 @@ if (!financialRange) return null
             <button
               key={year}
               onClick={() => setSelectedYear(year)}
-              className={`min-w-[88px] px-4 py-2.5 text-sm font-semibold rounded-xl transition-all duration-300
+              className={`min-w-[110px] flex-1 px-4 py-2.5 sm:flex-none text-sm font-semibold rounded-xl transition-all duration-300
               ${
                 active
                   ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg scale-[1.04]"
@@ -409,7 +403,7 @@ if (!financialRange) return null
 
       <div className="mb-6 bg-white/60 backdrop-blur-sm border border-gray-200 p-2 rounded-2xl shadow-sm">
 
-        <div className="grid grid-cols-12 gap-2">
+        <div className="grid grid-cols-6 gap-1.5 sm:grid-cols-12 sm:gap-2">
 
           {financialMonthsOfYear.map((month) => {
             const active = monthFilter === month.label
@@ -418,7 +412,7 @@ if (!financialRange) return null
               <button
                 key={month.label}
                 onClick={() => setMonthFilter(month.label)}
-                className={`py-2 text-sm font-medium rounded-xl transition-all duration-200
+                className={`py-2 text-xs font-medium sm:text-sm rounded-xl transition-all duration-200
                 ${
                   active
                     ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md scale-[1.05]"
@@ -436,7 +430,7 @@ if (!financialRange) return null
 
 
 
-      <div className="grid grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4 xl:gap-8">
 
         <Card title="Saldo do mês" value={money(metrics.saldo)} dynamic={metrics.saldo} />
 
@@ -448,7 +442,7 @@ if (!financialRange) return null
 
 
 
-      <div className="mt-8 grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="mt-8 grid grid-cols-1 xl:grid-cols-2 gap-6">
 
         <BalanceTrend financialMonths={financialMonthsOfYear} />
 
@@ -458,7 +452,7 @@ if (!financialRange) return null
 
 
 
-      <div className="mt-6 grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="mt-6 grid grid-cols-1 xl:grid-cols-2 gap-6">
 
         <MonthlyFlow financialMonths={financialMonthsOfYear} />
 
@@ -491,11 +485,11 @@ function Card({title,value,dynamic}:any){
 
   return(
 
-    <div className="bg-white/80 backdrop-blur-sm p-6 rounded-2xl shadow-lg border border-gray-200 hover:shadow-xl transition-all duration-300">
+    <div className="min-w-0 overflow-hidden rounded-2xl border border-gray-200 bg-white/80 p-5 shadow-lg backdrop-blur-sm transition-all duration-300 hover:shadow-xl sm:p-6">
 
       <p className="text-gray-500 text-sm mb-2">{title}</p>
 
-      <h2 className={`text-3xl font-semibold tracking-tight ${color}`}>
+      <h2 className={`break-words text-[clamp(1.35rem,3vw,1.875rem)] font-semibold leading-tight tracking-tight ${color}`}>
         {value}
       </h2>
 
