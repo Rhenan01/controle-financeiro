@@ -1,16 +1,33 @@
 "use client"
 
 import Link from "next/link"
+
 import {
   LayoutDashboard,
-  Wallet,
-  Settings,
   LogOut,
+  Repeat2,
+  Settings,
+  Wallet
 } from "lucide-react"
 
-import { usePathname, useRouter } from "next/navigation"
-import { useEffect, useState } from "react"
+import {
+  usePathname,
+  useRouter
+} from "next/navigation"
+
+import {
+  useEffect,
+  useState
+} from "react"
+
 import { supabase } from "@/lib/supabase"
+
+type MenuItem = {
+  name: string
+  mobileName: string
+  path: string
+  icon: typeof LayoutDashboard
+}
 
 export default function Sidebar() {
   const pathname = usePathname()
@@ -24,15 +41,18 @@ export default function Sidebar() {
 
     router.prefetch("/dashboard")
     router.prefetch("/lancamentos")
+    router.prefetch("/recorrencias")
     router.prefetch("/configuracoes")
 
     async function loadUser() {
-      const { data } = await supabase.auth.getUser()
+      const { data } =
+        await supabase.auth.getUser()
+
       setUser(data.user)
     }
 
     loadUser()
-  }, [])
+  }, [router])
 
   const displayName =
     user?.user_metadata?.display_name ||
@@ -48,32 +68,44 @@ export default function Sidebar() {
     return null
   }
 
-  const menu = [
+  const menu: MenuItem[] = [
     {
       name: "Dashboard",
+      mobileName: "Dashboard",
       icon: LayoutDashboard,
-      path: "/dashboard",
+      path: "/dashboard"
     },
     {
       name: "Lançamentos",
+      mobileName: "Lançamentos",
       icon: Wallet,
-      path: "/lancamentos",
+      path: "/lancamentos"
+    },
+    {
+      name: "Recorrências",
+      mobileName: "Recorrências",
+      icon: Repeat2,
+      path: "/recorrencias"
     },
     {
       name: "Configurações",
+      mobileName: "Ajustes",
       icon: Settings,
-      path: "/configuracoes",
-    },
+      path: "/configuracoes"
+    }
   ]
 
   return (
     <aside
       className="
         fixed inset-x-0 bottom-0 z-50
-        flex h-20 w-full flex-col
+        flex h-[76px] w-full flex-col
         bg-gradient-to-r from-slate-900 to-slate-800
-        p-2 text-white
+        px-1.5 py-2 text-white
         shadow-[0_-8px_30px_rgba(15,23,42,0.18)]
+
+        sm:h-20
+        sm:px-2
 
         lg:static
         lg:h-screen
@@ -84,13 +116,21 @@ export default function Sidebar() {
         lg:shadow-none
       "
     >
-      <h1 className="mb-8 hidden text-xl font-semibold tracking-tight lg:block">
+      <h1
+        className="
+          mb-8 hidden
+          text-xl font-semibold tracking-tight
+          lg:block
+        "
+      >
         Finanças
       </h1>
 
       <nav
         className="
-          grid h-full grid-cols-4 gap-1
+          grid h-full grid-cols-5 gap-0.5
+
+          sm:gap-1
 
           lg:flex
           lg:h-auto
@@ -100,26 +140,40 @@ export default function Sidebar() {
       >
         {menu.map((item) => {
           const Icon = item.icon
-          const active = pathname === item.path
+
+          const active =
+            pathname === item.path ||
+            pathname.startsWith(
+              `${item.path}/`
+            )
 
           return (
             <Link
-              key={item.name}
+              key={item.path}
               href={item.path}
               prefetch
+              aria-label={item.name}
+              aria-current={
+                active ? "page" : undefined
+              }
               className={`
                 flex min-w-0
                 flex-col items-center justify-center
                 gap-1 rounded-xl
-                px-1 py-2
-                text-[11px]
+                px-0.5 py-1.5
+                text-[9px] leading-none
                 transition-all
+
+                sm:px-1
+                sm:py-2
+                sm:text-[10px]
 
                 lg:flex-row
                 lg:justify-start
                 lg:gap-3
                 lg:px-4
                 lg:text-sm
+                lg:leading-normal
 
                 ${
                   active
@@ -128,9 +182,28 @@ export default function Sidebar() {
                 }
               `}
             >
-              <Icon className="shrink-0" size={20} />
+              <Icon
+                className="
+                  h-[19px] w-[19px] shrink-0
+                  sm:h-5 sm:w-5
+                "
+              />
 
-              <span className="max-w-full truncate">
+              <span
+                className="
+                  block max-w-full truncate
+                  lg:hidden
+                "
+              >
+                {item.mobileName}
+              </span>
+
+              <span
+                className="
+                  hidden max-w-full truncate
+                  lg:block
+                "
+              >
                 {item.name}
               </span>
             </Link>
@@ -140,26 +213,44 @@ export default function Sidebar() {
         <button
           type="button"
           onClick={handleLogout}
+          aria-label="Sair da conta"
           className="
             flex min-w-0
             flex-col items-center justify-center
             gap-1 rounded-xl
-            px-1 py-2
-            text-[11px] text-red-300
+            px-0.5 py-1.5
+            text-[9px] leading-none
+            text-red-300
             transition-all
             hover:bg-white/5
             hover:text-red-200
 
+            sm:px-1
+            sm:py-2
+            sm:text-[10px]
+
             lg:hidden
           "
         >
-          <LogOut className="shrink-0" size={20} />
+          <LogOut
+            className="
+              h-[19px] w-[19px] shrink-0
+              sm:h-5 sm:w-5
+            "
+          />
 
           <span>Sair</span>
         </button>
       </nav>
 
-      <div className="mt-auto hidden border-t border-white/10 pt-10 lg:block">
+      <div
+        className="
+          mt-auto hidden
+          border-t border-white/10
+          pt-10
+          lg:block
+        "
+      >
         {user && (
           <div className="flex items-center gap-3">
             <div
