@@ -1,546 +1,852 @@
 "use client"
 
-import { useState,useEffect } from "react"
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState
+} from "react"
+
+import { createPortal } from "react-dom"
 import { supabase } from "@/lib/supabase"
-import { Pencil, Trash2 } from "lucide-react"
-export default function DescriptionCategoryTable(){
-
-const [data,setData] = useState<any[]>([])
-const [filtered,setFiltered] = useState<any[]>([])
-const [selected,setSelected] = useState<string[]>([])
-
-const [modalOpen,setModalOpen] = useState(false)
-const [editingId,setEditingId] = useState<string|null>(null)
-
-const [descricao,setDescricao] = useState("")
-const [categoria,setCategoria] = useState("")
-
-const [descFilter,setDescFilter] = useState<string[]>([])
-const [catFilter,setCatFilter] = useState<string[]>([])
-
-const [openFilter,setOpenFilter] = useState<string|null>(null)
-
-
-
-async function loadData(){
-
-const {data}=await supabase
-.from("description_categories")
-.select("*")
-.order("description")
-
-if(data){
-setData(data)
-setFiltered(data)
-}
-
-}
-
-
-
-useEffect(()=>{loadData()},[])
-
-
-
-useEffect(()=>{
-
-let temp=[...data]
-
-if(descFilter.length>0){
-temp=temp.filter(i=>descFilter.includes(i.description))
-}
-
-if(catFilter.length>0){
-temp=temp.filter(i=>catFilter.includes(i.category))
-}
-
-setFiltered(temp)
-
-},[descFilter,catFilter,data])
-
-
-
-useEffect(()=>{
-
-function esc(e:KeyboardEvent){
-if(e.key==="Escape"){
-setModalOpen(false)
-}
-}
-
-window.addEventListener("keydown",esc)
-
-return ()=>window.removeEventListener("keydown",esc)
-
-},[])
-
-
-
-function toggleSelect(id:string){
-
-if(selected.includes(id)){
-setSelected(selected.filter(i=>i!==id))
-}else{
-setSelected([...selected,id])
-}
-
-}
-
-
-
-function selectAll(){
-
-if(selected.length===filtered.length){
-setSelected([])
-}else{
-setSelected(filtered.map(i=>i.id))
-}
-
-}
-
-
-
-async function deleteSelected(){
-
-for(const id of selected){
-
-await supabase
-.from("description_categories")
-.delete()
-.eq("id",id)
-
-}
-
-setSelected([])
-loadData()
-
-}
-
-
-
-function openNew(){
-
-setDescricao("")
-setCategoria("")
-setEditingId(null)
-setModalOpen(true)
-
-}
-
-
-
-function openEdit(item:any){
-
-setDescricao(item.description ?? "")
-setCategoria(item.category ?? "")
-setEditingId(item.id)
-setModalOpen(true)
-
-}
-
-
-
-async function save(){
-
-if(!descricao || !categoria) return
-
-const user=(await supabase.auth.getUser()).data.user
-
-if(!user) return
-
-let error
-
-if(editingId){
-
-const res=await supabase
-.from("description_categories")
-.update({
-description:descricao.toUpperCase().trim(),
-category:categoria
-})
-.eq("id",editingId)
-
-error=res.error
-
-}else{
-
-const res=await supabase
-.from("description_categories")
-.insert({
-user_id:user.id,
-description:descricao.toUpperCase().trim(),
-category:categoria
-})
-
-error=res.error
-
-}
-
-if(error){
-
-alert("Essa descrição já existe.")
-
-return
-
-}
-
-setModalOpen(false)
-loadData()
-
-}
-
-
-
-const descriptions=[...new Set(data.map(i=>i.description))]
-const categories=[...new Set(data.map(i=>i.category))]
-
-
-
-function toggleDesc(value:string){
-
-if(descFilter.includes(value)){
-setDescFilter(descFilter.filter(i=>i!==value))
-}else{
-setDescFilter([...descFilter,value])
-}
-
-}
-
-
-
-function toggleCat(value:string){
-
-if(catFilter.includes(value)){
-setCatFilter(catFilter.filter(i=>i!==value))
-}else{
-setCatFilter([...catFilter,value])
-}
-
-}
-
-
-
-return(
-
-<div className="bg-white border border-gray-200 rounded-xl shadow">
-
-<div className="flex justify-between items-center p-4 border-b">
-
-<span className="font-medium text-slate-700">
-Regras de categorização automática
-</span>
-
-<div className="flex items-center gap-3">
-
-{selected.length>0 &&(
-
-<span className="text-sm text-slate-600">
-{selected.length} selecionado(s)
-</span>
-
-)}
-
-{selected.length>0 &&(
-
-<button
-onClick={deleteSelected}
-className="bg-red-600 text-white px-3 py-1 rounded-lg text-sm hover:bg-red-700"
->
-Excluir selecionados
-</button>
-
-)}
-
-<button
-onClick={openNew}
-className="bg-blue-600 text-white px-3 py-1 rounded-lg text-sm hover:bg-blue-700"
->
-+ Novo
-</button>
-
-</div>
-
-</div>
-
-
-
-<div className="max-h-[450px] overflow-y-auto">
-
-<table className="w-full text-sm">
-
-<thead className="bg-gray-50 sticky top-0">
-
-<tr>
-
-<th className="px-4 py-3 w-[40px] text-center">
-
-<input
-type="checkbox"
-checked={selected.length===filtered.length && filtered.length>0}
-onChange={selectAll}
-/>
-
-</th>
-
-<th className="text-left px-4 py-3 text-slate-700 font-medium relative">
-
-<div className="flex items-center gap-2">
-
-Descrição
-
-<button
-onClick={()=>setOpenFilter(openFilter==="desc"?null:"desc")}
-className="text-gray-500 hover:text-gray-700"
->
-▼
-</button>
-
-</div>
-
-{openFilter==="desc" && (
-
-<div className="absolute bg-white border rounded-lg shadow p-2 mt-2 max-h-48 overflow-y-auto z-20">
-
-<label className="flex items-center gap-2 pb-2 border-b">
-
-<input
-type="checkbox"
-checked={descFilter.length===descriptions.length}
-onChange={()=>{
-
-if(descFilter.length===descriptions.length){
-setDescFilter([])
-}else{
-setDescFilter(descriptions)
-}
-
-}}
-/>
-
-Marcar todos
-
-</label>
-
-{descriptions.map(d=>(
-
-<label key={d} className="flex items-center gap-2 py-1">
-
-<input
-type="checkbox"
-checked={descFilter.includes(d)}
-onChange={()=>toggleDesc(d)}
-/>
-
-<span className="text-slate-700">{d}</span>
-
-</label>
-
-))}
-
-</div>
-
-)}
-
-</th>
-
-
-
-<th className="text-left px-4 py-3 text-slate-700 font-medium relative">
-
-<div className="flex items-center gap-2">
-
-Categoria
-
-<button
-onClick={()=>setOpenFilter(openFilter==="cat"?null:"cat")}
-className="text-gray-500 hover:text-gray-700"
->
-▼
-</button>
-
-</div>
-
-{openFilter==="cat" && (
-
-<div className="absolute bg-white border rounded-lg shadow p-2 mt-2 max-h-48 overflow-y-auto z-20">
-
-<label className="flex items-center gap-2 pb-2 border-b">
-
-<input
-type="checkbox"
-checked={catFilter.length===categories.length}
-onChange={()=>{
-
-if(catFilter.length===categories.length){
-setCatFilter([])
-}else{
-setCatFilter(categories)
-}
-
-}}
-/>
-
-Marcar todos
-
-</label>
-
-{categories.map(c=>(
-
-<label key={c} className="flex items-center gap-2 py-1">
-
-<input
-type="checkbox"
-checked={catFilter.includes(c)}
-onChange={()=>toggleCat(c)}
-/>
-
-<span className="text-slate-700">{c}</span>
-
-</label>
-
-))}
-
-</div>
-
-)}
-
-</th>
-
-
-
-<th className="text-right px-4 py-3 text-slate-700 font-medium">
-Ações
-</th>
-
-</tr>
-
-</thead>
-
-
-
-<tbody>
-
-{filtered.map(item=>(
-
-<tr key={item.id} className="border-t hover:bg-gray-50">
-
-<td className="px-4 py-3 text-center">
-
-<input
-type="checkbox"
-checked={selected.includes(item.id)}
-onChange={()=>toggleSelect(item.id)}
-/>
-
-</td>
-
-<td className="px-4 py-3 text-slate-800 font-medium">
-{item.description}
-</td>
-
-<td className="px-4 py-3 text-slate-700">
-{item.category}
-</td>
-
-<td className="px-4 py-3 text-right">
-
-  <div className="flex justify-end gap-2">
-
-    <button
-      onClick={() => openEdit(item)}
-      className="p-1.5 rounded-md hover:bg-blue-100 text-blue-600 transition"
-      title="Editar"
-    >
-      <Pencil size={16} />
-    </button>
-
-    <button
-      onClick={() =>
-        supabase
-          .from("description_categories")
-          .delete()
-          .eq("id", item.id)
-          .then(loadData)
+import {
+  Pencil,
+  Search,
+  Trash2,
+  X
+} from "lucide-react"
+
+type FilterType = "desc" | "cat" | null
+
+type FilterPosition = {
+  top: number
+  left: number
+  width: number
+} | null
+
+export default function DescriptionCategoryTable() {
+  const [data, setData] = useState<any[]>([])
+  const [filtered, setFiltered] = useState<any[]>([])
+  const [selected, setSelected] = useState<string[]>([])
+
+  const [modalOpen, setModalOpen] = useState(false)
+  const [editingId, setEditingId] = useState<string | null>(null)
+
+  const [descricao, setDescricao] = useState("")
+  const [categoria, setCategoria] = useState("")
+
+  const [descFilter, setDescFilter] = useState<string[]>([])
+  const [catFilter, setCatFilter] = useState<string[]>([])
+
+  const [descSearch, setDescSearch] = useState("")
+  const [catSearch, setCatSearch] = useState("")
+
+  const [openFilter, setOpenFilter] = useState<FilterType>(null)
+  const [filterPosition, setFilterPosition] =
+    useState<FilterPosition>(null)
+
+  const descButtonRef = useRef<HTMLButtonElement | null>(null)
+  const catButtonRef = useRef<HTMLButtonElement | null>(null)
+  const filterMenuRef = useRef<HTMLDivElement | null>(null)
+
+  async function loadData() {
+    const { data: rows } = await supabase
+      .from("description_categories")
+      .select("*")
+      .order("description")
+
+    if (rows) {
+      setData(rows)
+      setFiltered(rows)
+    }
+  }
+
+  useEffect(() => {
+    loadData()
+  }, [])
+
+  useEffect(() => {
+    let temp = [...data]
+
+    if (descFilter.length > 0) {
+      temp = temp.filter((item) =>
+        descFilter.includes(item.description)
+      )
+    }
+
+    if (catFilter.length > 0) {
+      temp = temp.filter((item) =>
+        catFilter.includes(item.category)
+      )
+    }
+
+    setFiltered(temp)
+  }, [descFilter, catFilter, data])
+
+  useEffect(() => {
+    function handleEscape(event: KeyboardEvent) {
+      if (event.key !== "Escape") return
+
+      if (modalOpen) {
+        setModalOpen(false)
+        return
       }
-      className="p-1.5 rounded-md hover:bg-red-100 text-red-600 transition"
-      title="Excluir"
-    >
-      <Trash2 size={16} />
-    </button>
 
-  </div>
+      setOpenFilter(null)
+    }
 
-</td>
+    window.addEventListener("keydown", handleEscape)
 
-</tr>
+    return () => {
+      window.removeEventListener("keydown", handleEscape)
+    }
+  }, [modalOpen])
 
-))}
+  /*
+    Calcula a posição do filtro em relação ao botão,
+    mas renderiza o menu fora da tabela.
+  */
+  useEffect(() => {
+    if (!openFilter) {
+      setFilterPosition(null)
+      return
+    }
 
-</tbody>
+    function updateFilterPosition() {
+      const button =
+        openFilter === "desc"
+          ? descButtonRef.current
+          : catButtonRef.current
 
-</table>
+      if (!button) return
 
-</div>
+      const rect = button.getBoundingClientRect()
 
+      const pageMargin = 12
+      const preferredWidth = 320
+      const availableWidth = window.innerWidth - pageMargin * 2
 
+      const width = Math.min(preferredWidth, availableWidth)
 
-{modalOpen &&(
+      const left = Math.min(
+        Math.max(pageMargin, rect.left),
+        window.innerWidth - width - pageMargin
+      )
 
-<div
-className="fixed inset-0 bg-black/40 flex items-center justify-center"
-onClick={()=>setModalOpen(false)}
->
+      const maximumMenuHeight = Math.min(
+        360,
+        window.innerHeight - pageMargin * 2
+      )
 
-<div
-className="bg-white p-6 rounded-xl w-[400px] space-y-4"
-onClick={(e)=>e.stopPropagation()}
->
+      const spaceBelow =
+        window.innerHeight - rect.bottom - pageMargin
 
-<h3 className="text-lg font-semibold text-slate-900">
+      const shouldOpenUpward =
+        spaceBelow < maximumMenuHeight &&
+        rect.top > maximumMenuHeight
 
-{editingId?"Editar regra":"Nova regra"}
+      const top = shouldOpenUpward
+        ? Math.max(
+            pageMargin,
+            rect.top - maximumMenuHeight - 8
+          )
+        : rect.bottom + 8
 
-</h3>
+      setFilterPosition({
+        top,
+        left,
+        width
+      })
+    }
 
-<input
-value={descricao || ""}
-onChange={(e)=>setDescricao(e.target.value)}
-placeholder="Descrição"
-className="w-full border border-gray-300 rounded-lg p-2.5 text-slate-900 placeholder:text-slate-400"
-/>
+    updateFilterPosition()
 
-<input
-value={categoria || ""}
-onChange={(e)=>setCategoria(e.target.value)}
-placeholder="Categoria"
-className="w-full border border-gray-300 rounded-lg p-2.5 text-slate-900 placeholder:text-slate-400"
-/>
+    window.addEventListener("resize", updateFilterPosition)
+    window.addEventListener(
+      "scroll",
+      updateFilterPosition,
+      true
+    )
 
-<div className="flex justify-end gap-3">
+    return () => {
+      window.removeEventListener(
+        "resize",
+        updateFilterPosition
+      )
 
-<button
-onClick={()=>setModalOpen(false)}
-className="text-gray-500"
->
-cancelar
-</button>
+      window.removeEventListener(
+        "scroll",
+        updateFilterPosition,
+        true
+      )
+    }
+  }, [openFilter])
 
-<button
-onClick={save}
-className="bg-blue-600 text-white px-3 py-1 rounded-lg"
->
-salvar
-</button>
+  /*
+    Fecha o filtro ao clicar fora do menu ou
+    dos botões que abrem os filtros.
+  */
+  useEffect(() => {
+    if (!openFilter) return
 
-</div>
+    function handleClickOutside(event: MouseEvent) {
+      const target = event.target as Node
 
-</div>
+      if (filterMenuRef.current?.contains(target)) {
+        return
+      }
 
-</div>
+      if (descButtonRef.current?.contains(target)) {
+        return
+      }
 
-)}
+      if (catButtonRef.current?.contains(target)) {
+        return
+      }
 
-</div>
+      setOpenFilter(null)
+    }
 
-)
+    document.addEventListener(
+      "mousedown",
+      handleClickOutside
+    )
+
+    return () => {
+      document.removeEventListener(
+        "mousedown",
+        handleClickOutside
+      )
+    }
+  }, [openFilter])
+
+  function toggleSelect(id: string) {
+    setSelected((current) => {
+      if (current.includes(id)) {
+        return current.filter((item) => item !== id)
+      }
+
+      return [...current, id]
+    })
+  }
+
+  const filteredIds = filtered.map((item) => item.id)
+
+  const allFilteredSelected =
+    filtered.length > 0 &&
+    filtered.every((item) =>
+      selected.includes(item.id)
+    )
+
+  function selectAll() {
+    setSelected((current) => {
+      if (allFilteredSelected) {
+        return current.filter(
+          (id) => !filteredIds.includes(id)
+        )
+      }
+
+      return Array.from(
+        new Set([...current, ...filteredIds])
+      )
+    })
+  }
+
+  async function deleteSelected() {
+    for (const id of selected) {
+      await supabase
+        .from("description_categories")
+        .delete()
+        .eq("id", id)
+    }
+
+    setSelected([])
+    await loadData()
+  }
+
+  function openNew() {
+    setDescricao("")
+    setCategoria("")
+    setEditingId(null)
+    setOpenFilter(null)
+    setModalOpen(true)
+  }
+
+  function openEdit(item: any) {
+    setDescricao(item.description ?? "")
+    setCategoria(item.category ?? "")
+    setEditingId(item.id)
+    setOpenFilter(null)
+    setModalOpen(true)
+  }
+
+  async function save() {
+    if (!descricao || !categoria) return
+
+    const user = (await supabase.auth.getUser())
+      .data.user
+
+    if (!user) return
+
+    let error
+
+    if (editingId) {
+      const response = await supabase
+        .from("description_categories")
+        .update({
+          description: descricao
+            .toUpperCase()
+            .trim(),
+          category: categoria.trim()
+        })
+        .eq("id", editingId)
+
+      error = response.error
+    } else {
+      const response = await supabase
+        .from("description_categories")
+        .insert({
+          user_id: user.id,
+          description: descricao
+            .toUpperCase()
+            .trim(),
+          category: categoria.trim()
+        })
+
+      error = response.error
+    }
+
+    if (error) {
+      alert("Essa descrição já existe.")
+      return
+    }
+
+    setModalOpen(false)
+    await loadData()
+  }
+
+  const descriptions = useMemo(() => {
+    return [
+      ...new Set(
+        data
+          .map((item) => item.description)
+          .filter(Boolean)
+      )
+    ].sort((a, b) =>
+      String(a).localeCompare(String(b), "pt-BR")
+    )
+  }, [data])
+
+  const categories = useMemo(() => {
+    return [
+      ...new Set(
+        data
+          .map((item) => item.category)
+          .filter(Boolean)
+      )
+    ].sort((a, b) =>
+      String(a).localeCompare(String(b), "pt-BR")
+    )
+  }, [data])
+
+  function toggleDesc(value: string) {
+    setDescFilter((current) => {
+      if (current.includes(value)) {
+        return current.filter(
+          (item) => item !== value
+        )
+      }
+
+      return [...current, value]
+    })
+  }
+
+  function toggleCat(value: string) {
+    setCatFilter((current) => {
+      if (current.includes(value)) {
+        return current.filter(
+          (item) => item !== value
+        )
+      }
+
+      return [...current, value]
+    })
+  }
+
+  function toggleFilter(type: FilterType) {
+    setOpenFilter((current) =>
+      current === type ? null : type
+    )
+  }
+
+  const activeOptions =
+    openFilter === "desc"
+      ? descriptions
+      : categories
+
+  const activeSearch =
+    openFilter === "desc"
+      ? descSearch
+      : catSearch
+
+  const activeFilter =
+    openFilter === "desc"
+      ? descFilter
+      : catFilter
+
+  const visibleOptions = activeOptions.filter(
+    (option) =>
+      String(option)
+        .toLocaleLowerCase("pt-BR")
+        .includes(
+          activeSearch
+            .trim()
+            .toLocaleLowerCase("pt-BR")
+        )
+  )
+
+  const allVisibleSelected =
+    visibleOptions.length > 0 &&
+    visibleOptions.every((option) =>
+      activeFilter.includes(String(option))
+    )
+
+  function setActiveSearch(value: string) {
+    if (openFilter === "desc") {
+      setDescSearch(value)
+    } else {
+      setCatSearch(value)
+    }
+  }
+
+  function toggleActiveValue(value: string) {
+    if (openFilter === "desc") {
+      toggleDesc(value)
+    } else {
+      toggleCat(value)
+    }
+  }
+
+  function toggleAllVisible() {
+    if (!openFilter) return
+
+    const currentFilter =
+      openFilter === "desc"
+        ? descFilter
+        : catFilter
+
+    const setFilter =
+      openFilter === "desc"
+        ? setDescFilter
+        : setCatFilter
+
+    if (allVisibleSelected) {
+      setFilter(
+        currentFilter.filter(
+          (item) =>
+            !visibleOptions.includes(item)
+        )
+      )
+
+      return
+    }
+
+    setFilter(
+      Array.from(
+        new Set([
+          ...currentFilter,
+          ...visibleOptions
+        ])
+      )
+    )
+  }
+
+  function clearActiveFilter() {
+    if (openFilter === "desc") {
+      setDescFilter([])
+      setDescSearch("")
+    } else {
+      setCatFilter([])
+      setCatSearch("")
+    }
+  }
+
+  const filterTitle =
+    openFilter === "desc"
+      ? "Filtrar descrições"
+      : "Filtrar categorias"
+
+  const filterPlaceholder =
+    openFilter === "desc"
+      ? "Pesquisar descrição..."
+      : "Pesquisar categoria..."
+
+  const filterPortal =
+    openFilter &&
+    filterPosition &&
+    typeof document !== "undefined"
+      ? createPortal(
+          <div
+            ref={filterMenuRef}
+            style={{
+              top: filterPosition.top,
+              left: filterPosition.left,
+              width: filterPosition.width
+            }}
+            className="
+              fixed z-[200]
+              flex max-h-[min(360px,calc(100dvh-24px))]
+              flex-col overflow-hidden
+              rounded-xl border border-slate-200
+              bg-white shadow-2xl
+            "
+          >
+            <div className="border-b border-slate-200 p-3">
+              <div className="mb-2 flex items-center justify-between gap-3">
+                <span className="text-sm font-semibold text-slate-800">
+                  {filterTitle}
+                </span>
+
+                <button
+                  type="button"
+                  onClick={() => setOpenFilter(null)}
+                  className="flex h-7 w-7 items-center justify-center rounded-full text-slate-500 transition hover:bg-slate-100"
+                  aria-label="Fechar filtro"
+                >
+                  <X size={15} />
+                </button>
+              </div>
+
+              <div className="flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3">
+                <Search
+                  size={16}
+                  className="shrink-0 text-slate-400"
+                />
+
+                <input
+                  autoFocus
+                  value={activeSearch}
+                  onChange={(event) =>
+                    setActiveSearch(
+                      event.target.value
+                    )
+                  }
+                  placeholder={filterPlaceholder}
+                  className="min-w-0 flex-1 bg-transparent py-2 text-sm text-slate-800 outline-none placeholder:text-slate-400"
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between gap-3 border-b border-slate-200 px-3 py-2">
+              <label className="flex min-w-0 cursor-pointer items-center gap-2 text-sm text-slate-700">
+                <input
+                  type="checkbox"
+                  checked={allVisibleSelected}
+                  disabled={
+                    visibleOptions.length === 0
+                  }
+                  onChange={toggleAllVisible}
+                  className="h-4 w-4 shrink-0 accent-blue-600"
+                />
+
+                <span className="truncate">
+                  Marcar resultados visíveis
+                </span>
+              </label>
+
+              <button
+                type="button"
+                onClick={clearActiveFilter}
+                className="shrink-0 text-xs font-medium text-blue-600 transition hover:text-blue-800"
+              >
+                Limpar
+              </button>
+            </div>
+
+            <div className="min-h-0 flex-1 overflow-y-auto p-2">
+              {visibleOptions.length > 0 ? (
+                visibleOptions.map((option) => {
+                  const value = String(option)
+
+                  return (
+                    <label
+                      key={value}
+                      className="flex cursor-pointer items-start gap-2 rounded-lg px-2 py-2 text-sm transition hover:bg-slate-100"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={activeFilter.includes(
+                          value
+                        )}
+                        onChange={() =>
+                          toggleActiveValue(value)
+                        }
+                        className="mt-0.5 h-4 w-4 shrink-0 accent-blue-600"
+                      />
+
+                      <span className="break-words text-slate-700">
+                        {value}
+                      </span>
+                    </label>
+                  )
+                })
+              ) : (
+                <div className="px-3 py-6 text-center text-sm text-slate-500">
+                  Nenhum resultado encontrado.
+                </div>
+              )}
+            </div>
+
+            <div className="border-t border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-500">
+              {activeFilter.length} item(ns) selecionado(s)
+            </div>
+          </div>,
+          document.body
+        )
+      : null
+
+  return (
+    <div className="rounded-xl border border-gray-200 bg-white shadow">
+      <div className="flex items-center justify-between border-b p-4">
+        <span className="font-medium text-slate-700">
+          Regras de categorização automática
+        </span>
+
+        <div className="flex items-center gap-3">
+          {selected.length > 0 && (
+            <span className="text-sm text-slate-600">
+              {selected.length} selecionado(s)
+            </span>
+          )}
+
+          {selected.length > 0 && (
+            <button
+              type="button"
+              onClick={deleteSelected}
+              className="rounded-lg bg-red-600 px-3 py-1 text-sm text-white hover:bg-red-700"
+            >
+              Excluir selecionados
+            </button>
+          )}
+
+          <button
+            type="button"
+            onClick={openNew}
+            className="rounded-lg bg-blue-600 px-3 py-1 text-sm text-white hover:bg-blue-700"
+          >
+            + Novo
+          </button>
+        </div>
+      </div>
+
+      <div className="max-h-[450px] overflow-y-auto">
+        <table className="w-full text-sm">
+          <thead className="sticky top-0 z-10 bg-gray-50">
+            <tr>
+              <th className="w-[40px] px-4 py-3 text-center">
+                <input
+                  type="checkbox"
+                  checked={allFilteredSelected}
+                  onChange={selectAll}
+                />
+              </th>
+
+              <th className="px-4 py-3 text-left font-medium text-slate-700">
+                <div className="flex items-center gap-2">
+                  <span>Descrição</span>
+
+                  <button
+                    ref={descButtonRef}
+                    type="button"
+                    onClick={() =>
+                      toggleFilter("desc")
+                    }
+                    aria-expanded={
+                      openFilter === "desc"
+                    }
+                    className={`inline-flex items-center gap-1 transition ${
+                      descFilter.length > 0
+                        ? "text-blue-600"
+                        : "text-gray-500 hover:text-gray-700"
+                    }`}
+                  >
+                    <span>
+                      {openFilter === "desc"
+                        ? "▲"
+                        : "▼"}
+                    </span>
+
+                    {descFilter.length > 0 && (
+                      <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-blue-600 px-1 text-[10px] text-white">
+                        {descFilter.length}
+                      </span>
+                    )}
+                  </button>
+                </div>
+              </th>
+
+              <th className="px-4 py-3 text-left font-medium text-slate-700">
+                <div className="flex items-center gap-2">
+                  <span>Categoria</span>
+
+                  <button
+                    ref={catButtonRef}
+                    type="button"
+                    onClick={() =>
+                      toggleFilter("cat")
+                    }
+                    aria-expanded={
+                      openFilter === "cat"
+                    }
+                    className={`inline-flex items-center gap-1 transition ${
+                      catFilter.length > 0
+                        ? "text-blue-600"
+                        : "text-gray-500 hover:text-gray-700"
+                    }`}
+                  >
+                    <span>
+                      {openFilter === "cat"
+                        ? "▲"
+                        : "▼"}
+                    </span>
+
+                    {catFilter.length > 0 && (
+                      <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-blue-600 px-1 text-[10px] text-white">
+                        {catFilter.length}
+                      </span>
+                    )}
+                  </button>
+                </div>
+              </th>
+
+              <th className="px-4 py-3 text-right font-medium text-slate-700">
+                Ações
+              </th>
+            </tr>
+          </thead>
+
+          <tbody>
+            {filtered.map((item) => (
+              <tr
+                key={item.id}
+                className="border-t hover:bg-gray-50"
+              >
+                <td className="px-4 py-3 text-center">
+                  <input
+                    type="checkbox"
+                    checked={selected.includes(
+                      item.id
+                    )}
+                    onChange={() =>
+                      toggleSelect(item.id)
+                    }
+                  />
+                </td>
+
+                <td className="px-4 py-3 font-medium text-slate-800">
+                  {item.description}
+                </td>
+
+                <td className="px-4 py-3 text-slate-700">
+                  {item.category}
+                </td>
+
+                <td className="px-4 py-3 text-right">
+                  <div className="flex justify-end gap-2">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        openEdit(item)
+                      }
+                      className="rounded-md p-1.5 text-blue-600 transition hover:bg-blue-100"
+                      title="Editar"
+                    >
+                      <Pencil size={16} />
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        supabase
+                          .from(
+                            "description_categories"
+                          )
+                          .delete()
+                          .eq("id", item.id)
+                          .then(loadData)
+                      }
+                      className="rounded-md p-1.5 text-red-600 transition hover:bg-red-100"
+                      title="Excluir"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {filterPortal}
+
+      {modalOpen && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 p-3"
+          onClick={() => setModalOpen(false)}
+        >
+          <div
+            className="w-full max-w-[400px] space-y-4 rounded-xl bg-white p-6"
+            onClick={(event) =>
+              event.stopPropagation()
+            }
+          >
+            <h3 className="text-lg font-semibold text-slate-900">
+              {editingId
+                ? "Editar regra"
+                : "Nova regra"}
+            </h3>
+
+            <input
+              value={descricao}
+              onChange={(event) =>
+                setDescricao(event.target.value)
+              }
+              placeholder="Descrição"
+              className="w-full rounded-lg border border-gray-300 p-2.5 text-slate-900 placeholder:text-slate-400"
+            />
+
+            <input
+              value={categoria}
+              onChange={(event) =>
+                setCategoria(event.target.value)
+              }
+              placeholder="Categoria"
+              className="w-full rounded-lg border border-gray-300 p-2.5 text-slate-900 placeholder:text-slate-400"
+            />
+
+            <div className="flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() =>
+                  setModalOpen(false)
+                }
+                className="text-gray-500"
+              >
+                Cancelar
+              </button>
+
+              <button
+                type="button"
+                onClick={save}
+                className="rounded-lg bg-blue-600 px-3 py-1 text-white"
+              >
+                Salvar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
 }
