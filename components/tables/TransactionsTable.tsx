@@ -685,14 +685,14 @@ return unique.sort((a, b) => {
 
   return (
 
-    <div className="bg-white border border-slate-200 rounded-xl overflow-visible">
+    <div className="min-w-0 rounded-xl border border-slate-200 bg-white">
 
     {selected.length > 0 && (
 
-      <div className="sticky top-[119px] z-30 border-b border-slate-200 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/80 shadow-sm">
-        <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
+      <div className="border-b border-slate-200 bg-white/95 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-white/80 lg:sticky lg:top-[119px] lg:z-30">
+        <div className="flex flex-col gap-3 px-3 py-3 sm:px-4 lg:flex-row lg:flex-wrap lg:items-center lg:justify-between">
 
-          <div className="flex items-center gap-3">
+          <div className="flex min-w-0 items-center gap-2">
             <div className="flex items-center gap-2 rounded-full bg-blue-50 px-3 py-1.5 border border-blue-100">
               <ListChecks size={16} className="text-blue-600" />
               <span className="text-sm font-medium text-slate-700">
@@ -713,7 +713,7 @@ return unique.sort((a, b) => {
             </button>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="grid w-full grid-cols-1 gap-2 sm:grid-cols-2 lg:flex lg:w-auto lg:flex-wrap lg:items-center">
 
             <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-2 py-1.5 shadow-sm">
               <CalendarDays size={16} className="text-slate-500" />
@@ -812,8 +812,238 @@ return unique.sort((a, b) => {
       </div>
 
     )}
+{/* VISUALIZAÇÃO PARA CELULAR E TABLET */}
+<div className="space-y-3 bg-slate-50/60 p-2 lg:hidden">
+  {Object.entries(groupedByDate).map(([date, list]) => {
+    const collapsed = collapsedDays[date]
+    const dayBalance = balanceMap[list[list.length - 1].id]
+    const allDaySelected = list.every((t) =>
+      selected.includes(t.id)
+    )
 
-      <table className="w-full text-sm">
+    return (
+      <section
+        key={date}
+        className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm"
+      >
+        {/* Cabeçalho do dia */}
+        <div className="flex items-center gap-3 bg-slate-50 px-3 py-3">
+          <input
+            type="checkbox"
+            checked={allDaySelected}
+            onChange={() => toggleSelectDay(date)}
+            className="h-4 w-4 shrink-0 cursor-pointer accent-blue-600"
+            aria-label={`Selecionar lançamentos de ${formatDate(date)}`}
+          />
+
+          <button
+            type="button"
+            onClick={() => toggleDay(date)}
+            className="flex min-w-0 flex-1 items-center justify-between gap-3 text-left"
+          >
+            <span className="min-w-0">
+              <span className="block text-sm font-semibold text-slate-700">
+                {formatDate(date)} ({weekday(date)})
+              </span>
+
+              <span
+                className={`mt-0.5 block text-xs font-medium ${
+                  (dayBalance ?? 0) >= 0
+                    ? "text-emerald-600"
+                    : "text-rose-600"
+                }`}
+              >
+                Saldo do dia: {money(dayBalance ?? 0)}
+              </span>
+            </span>
+
+            <span className="shrink-0 text-lg text-slate-500">
+              {collapsed ? "▸" : "▾"}
+            </span>
+          </button>
+        </div>
+
+        {/* Lançamentos do dia */}
+        {!collapsed && (
+          <div className="divide-y divide-slate-100">
+            {list.map((t) => (
+              <article
+                key={t.id}
+                className={`p-3 transition-colors ${
+                  selected.includes(t.id)
+                    ? "bg-blue-50/70"
+                    : "bg-white"
+                }`}
+              >
+                <div className="flex items-start gap-3">
+                  <input
+                    type="checkbox"
+                    checked={selected.includes(t.id)}
+                    onChange={() => toggleSelect(t.id)}
+                    className="mt-1 h-4 w-4 shrink-0 cursor-pointer accent-blue-600"
+                    aria-label={`Selecionar ${t.description}`}
+                  />
+
+                  <div className="min-w-0 flex-1">
+                    {/* Descrição e valor */}
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span
+                            className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                              t.type === "ENTRADA"
+                                ? "bg-emerald-100 text-emerald-700"
+                                : "bg-rose-100 text-rose-700"
+                            }`}
+                          >
+                            {t.type}
+                          </span>
+
+                          {relatedInfoMap[t.id] && (
+                            <span
+                              title={relatedInfoMap[t.id]}
+                              className="text-blue-500"
+                            >
+                              <Link2 size={14} />
+                            </span>
+                          )}
+                        </div>
+
+                        <p
+                          className="mt-1 break-words text-sm font-semibold leading-snug text-slate-800"
+                          title={relatedInfoMap[t.id] || ""}
+                        >
+                          {t.description}
+                        </p>
+                      </div>
+
+                      <p
+                        className={`shrink-0 whitespace-nowrap text-right text-sm font-bold tabular-nums ${
+                          t.type === "ENTRADA"
+                            ? "text-emerald-600"
+                            : "text-rose-600"
+                        }`}
+                      >
+                        {t.type === "ENTRADA" ? "+" : "-"}
+                        {money(t.value)}
+                      </p>
+                    </div>
+
+                    {/* Informações complementares */}
+                    <div className="mt-3 grid grid-cols-2 gap-x-3 gap-y-2 text-xs">
+                      <div className="min-w-0">
+                        <span className="block text-slate-400">
+                          Pagamento
+                        </span>
+
+                        <span className="block truncate font-medium text-slate-700">
+                          {t.payment || "-"}
+                        </span>
+                      </div>
+
+                      <div className="min-w-0">
+                        <span className="block text-slate-400">
+                          Cartão
+                        </span>
+
+                        <span
+                          className="block truncate font-medium"
+                          style={{
+                            color: t.card
+                              ? cardColorMap[t.card] ?? "#334155"
+                              : "#334155"
+                          }}
+                        >
+                          {t.card ?? "-"}
+                        </span>
+                      </div>
+
+                      <div className="min-w-0">
+                        <span className="block text-slate-400">
+                          Parcela
+                        </span>
+
+                        <span className="block truncate font-medium text-slate-700">
+                          {t.installment ?? "-"}
+                        </span>
+                      </div>
+
+                      <div className="min-w-0">
+                        <span className="block text-slate-400">
+                          Saldo
+                        </span>
+
+                        <span
+                          className={`block truncate font-semibold tabular-nums ${
+                            (balanceMap[t.id] ?? 0) >= 0
+                              ? "text-emerald-600"
+                              : "text-rose-600"
+                          }`}
+                        >
+                          {money(balanceMap[t.id] ?? 0)}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Status e ações */}
+                    <div className="mt-3 flex items-center justify-between gap-3 border-t border-slate-100 pt-3">
+                      <label className="flex cursor-pointer items-center gap-2">
+                        <input
+                          type="checkbox"
+                          checked={t.status === "PAGO"}
+                          onChange={() => toggleStatus(t)}
+                          className="h-4 w-4 cursor-pointer accent-emerald-600"
+                        />
+
+                        <span
+                          className={`rounded-full px-2 py-1 text-[10px] font-bold ${
+                            t.status === "PAGO"
+                              ? "bg-emerald-100 text-emerald-700"
+                              : "bg-amber-100 text-amber-700"
+                          }`}
+                        >
+                          {t.status}
+                        </span>
+                      </label>
+
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            window.dispatchEvent(
+                              new CustomEvent("openEditTransaction", {
+                                detail: t
+                              })
+                            )
+                          }
+                          className="flex h-9 w-9 items-center justify-center rounded-lg text-blue-600 transition hover:bg-blue-50"
+                          title="Editar lançamento"
+                        >
+                          <Pencil size={17} />
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => askDeleteTransaction(t)}
+                          className="flex h-9 w-9 items-center justify-center rounded-lg text-red-600 transition hover:bg-red-50"
+                          title="Excluir lançamento"
+                        >
+                          <Trash2 size={17} />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </article>
+            ))}
+          </div>
+        )}
+      </section>
+    )
+  })}
+</div>
+    <div className="hidden overflow-x-auto lg:block">
+      <table className="w-full min-w-[780px] table-fixed text-[11px] xl:min-w-[1050px] xl:text-sm">
 
         <thead className="bg-slate-50 text-slate-700 border-b">
 
@@ -830,10 +1060,18 @@ return unique.sort((a, b) => {
             </th>
 
             <th
-              className="p-3 text-left font-semibold cursor-pointer"
-              onClick={()=>setSortDirection(sortDirection==="asc"?"desc":"asc")}
+              className="cursor-pointer whitespace-nowrap p-3 text-left font-semibold"
+              onClick={() =>
+                setSortDirection(sortDirection === "asc" ? "desc" : "asc")
+              }
             >
-              Data {sortDirection==="asc"?"↑":"↓"}
+              <span className="inline-flex items-center gap-1 whitespace-nowrap">
+                <span>Data</span>
+
+                <span aria-hidden="true">
+                  {sortDirection === "asc" ? "↑" : "↓"}
+                </span>
+              </span>
             </th>
 
             {[
@@ -1064,6 +1302,7 @@ return unique.sort((a, b) => {
         </tbody>
 
       </table>
+    </div>
 
       {deleteModalOpen && deleteTarget && (
         <div className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-900/45 backdrop-blur-sm p-4">

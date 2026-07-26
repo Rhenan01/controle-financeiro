@@ -284,7 +284,7 @@ export default function Lancamentos() {
 
   return (
 
-    <div className="mx-auto w-full min-w-0 max-w-[1400px] p-3 sm:p-5 lg:p-8">
+    <div className="mx-auto w-full min-w-0 max-w-[1400px] p-3 sm:p-5 lg:p-5 xl:p-8">
 
       <h1 className="mb-4 text-2xl font-semibold text-slate-800 sm:mb-6 sm:text-3xl">
         Lançamentos
