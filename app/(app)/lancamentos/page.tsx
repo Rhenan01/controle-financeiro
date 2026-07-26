@@ -284,21 +284,21 @@ export default function Lancamentos() {
 
   return (
 
-    <div className="p-8 max-w-[1400px] mx-auto">
+    <div className="mx-auto w-full min-w-0 max-w-[1400px] p-3 sm:p-5 lg:p-8">
 
-      <h1 className="text-3xl font-semibold text-slate-800 mb-6">
+      <h1 className="mb-4 text-2xl font-semibold text-slate-800 sm:mb-6 sm:text-3xl">
         Lançamentos
       </h1>
 
 
-      <div className="flex justify-between items-center mb-8">
+      <div className="mb-3 flex flex-col gap-3 sm:mb-4 lg:flex-row lg:items-center lg:justify-between">
 
-        <div className="flex gap-3 items-center">
+        <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
 
           <select
             value={monthFilter}
             onChange={(e) => setMonthFilter(e.target.value)}
-            className="border border-slate-300 bg-white text-slate-800 rounded-lg px-3 py-2 text-sm"
+            className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 sm:w-auto"
           >
 
             <option value="all">Todos</option>
@@ -318,18 +318,12 @@ export default function Lancamentos() {
           <button
             onClick={clearFilters}
             className="
-            border border-slate-300
-            bg-white
-            text-slate-700
-            px-4 py-2
-            rounded-lg
-            text-sm
-            shadow-sm
-            transition
-            hover:bg-slate-100
-            hover:border-slate-400
-            active:scale-[0.97]
-            active:shadow-inner
+              w-full rounded-lg border border-slate-300
+              bg-white px-4 py-2 text-sm text-slate-700
+              shadow-sm transition
+              hover:border-slate-400 hover:bg-slate-100
+              active:scale-[0.97] active:shadow-inner
+              sm:w-auto
             "
           >
             Limpar filtros
@@ -338,7 +332,7 @@ export default function Lancamentos() {
 
           {rangeLabel && (
 
-            <span className="text-sm text-slate-500 font-medium">
+            <span className="w-full break-words text-xs font-medium text-slate-500 sm:w-auto sm:text-sm">
               {rangeLabel}
             </span>
 
@@ -349,7 +343,7 @@ export default function Lancamentos() {
 
         <button
           onClick={() => setOpenModal(true)}
-          className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700 transition"
+          className="w-full rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700 sm:w-auto"
         >
           + Novo lançamento
         </button>
@@ -357,9 +351,9 @@ export default function Lancamentos() {
       </div>
 
 
-      <div className="sticky top-0 z-30  py-4 mb-4">
+      <div className="mb-4 py-0 lg:sticky lg:top-0 lg:z-30 lg:py-2">
 
-        <div className="max-w-[1400px] mx-auto grid grid-cols-1 md:grid-cols-5 gap-4">
+        <div className="mx-auto grid max-w-[1400px] grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5 lg:gap-4">
 
           <Card title="Entradas" value={money(metrics.entradas)} positive />
           <Card title="Saídas" value={money(metrics.saidas)} negative />
@@ -389,33 +383,27 @@ export default function Lancamentos() {
 
 
 function Card({ title, value, positive, negative, dynamic }: any) {
-
   let color = "text-slate-800"
 
   if (positive) color = "text-green-600"
   if (negative) color = "text-red-600"
 
   if (dynamic !== undefined) {
-
     if (dynamic >= 0) color = "text-green-600"
     if (dynamic < 0) color = "text-red-600"
-
   }
 
   return (
-
-    <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
-
-      <p className="text-sm text-slate-500">
+    <div className="min-w-0 overflow-hidden rounded-xl border border-slate-200 bg-white p-3 shadow-sm sm:p-4">
+      <p className="text-xs text-slate-500 sm:text-sm">
         {title}
       </p>
 
-      <p className={`text-xl font-semibold mt-1 ${color}`}>
+      <p
+        className={`mt-1 whitespace-nowrap font-semibold leading-tight tabular-nums text-lg sm:text-xl lg:text-base xl:text-xl ${color}`}
+      >
         {value}
       </p>
-
     </div>
-
   )
-
 }
