@@ -3,132 +3,332 @@ import { supabase } from "@/lib/supabase"
 
 export type Transaction = {
   id: string
+  user_id?: string
   date: string
   type: "ENTRADA" | "SAÍDA"
   description: string
   value: number
   status: "PAGO" | "PREVISTO"
   payment: string
-  card?: string
-  installment?: string
+  card?: string | null
+  installment?: string | null
+  created_at?: string | null
+
   related_transaction_id?: string | null
-  related_transaction_role?: "PRINCIPAL" | "ESTORNO_REEMBOLSO" | null
+
+  related_transaction_role?:
+    | "PRINCIPAL"
+    | "ESTORNO_REEMBOLSO"
+    | null
+
+  recurring_transaction_id?: string | null
+  financial_period_start?: string | null
+  financial_period_end?: string | null
 }
 
 type FinanceState = {
   transactions: Transaction[]
 
   selectedCategory: string | null
-  setSelectedCategory: (category: string | null) => void
-selectedFinancialYear: number
-setSelectedFinancialYear: (year: number) => void
-  
-  loadTransactions: (userId: string) => Promise<void>
-  addTransaction: (t: Transaction, userId: string) => Promise<void>
-  updateTransaction: (id: string, t: Transaction) => Promise<void>
-  deleteTransaction: (id: string) => Promise<void>
+
+  setSelectedCategory: (
+    category: string | null
+  ) => void
+
+  selectedFinancialYear: number
+
+  setSelectedFinancialYear: (
+    year: number
+  ) => void
+
+  loadTransactions: (
+    userId: string
+  ) => Promise<void>
+
+  addTransaction: (
+    transaction: Transaction,
+    userId: string
+  ) => Promise<void>
+
+  updateTransaction: (
+    id: string,
+    transaction: Transaction
+  ) => Promise<void>
+
+  deleteTransaction: (
+    id: string
+  ) => Promise<void>
 }
 
-export const useFinanceStore = create<FinanceState>((set) => ({
+/*
+  Remove itens repetidos pelo ID e mantém
+  os lançamentos em ordem decrescente de data.
 
-  transactions: [],
+  A data de criação e o ID são usados como
+  critérios de desempate para deixar a
+  ordenação estável durante a paginação.
+*/
+function normalizeTransactions(
+  transactions: Transaction[]
+) {
+  const transactionsById =
+    new Map<string, Transaction>()
 
-  selectedCategory: null,
+  for (const transaction of transactions) {
+    if (!transaction?.id) {
+      continue
+    }
 
-  setSelectedCategory: (category) =>
-    set({ selectedCategory: category }),
-  selectedFinancialYear: new Date().getFullYear(),
+    /*
+      Caso o mesmo ID apareça novamente,
+      a versão mais recente substitui a anterior.
+    */
+    transactionsById.set(
+      transaction.id,
+      transaction
+    )
+  }
 
-  setSelectedFinancialYear: (year) =>
-    set({ selectedFinancialYear: year }),
-  loadTransactions: async (userId) => {
-    const pageSize = 1000
-    let from = 0
-    let allTransactions: Transaction[] = []
+  return Array.from(
+    transactionsById.values()
+  ).sort((first, second) => {
+    const dateComparison =
+      second.date.localeCompare(
+        first.date
+      )
 
-    while (true) {
-      const { data, error } = await supabase
-        .from("transactions")
-        .select("*")
-        .eq("user_id", userId)
-        .order("date", { ascending: false })
-        .range(from, from + pageSize - 1)
+    if (dateComparison !== 0) {
+      return dateComparison
+    }
+
+    const firstCreatedAt =
+      first.created_at ?? ""
+
+    const secondCreatedAt =
+      second.created_at ?? ""
+
+    const createdAtComparison =
+      secondCreatedAt.localeCompare(
+        firstCreatedAt
+      )
+
+    if (createdAtComparison !== 0) {
+      return createdAtComparison
+    }
+
+    return second.id.localeCompare(
+      first.id
+    )
+  })
+}
+
+export const useFinanceStore =
+  create<FinanceState>((set) => ({
+    transactions: [],
+
+    selectedCategory: null,
+
+    setSelectedCategory: (
+      category
+    ) =>
+      set({
+        selectedCategory: category
+      }),
+
+    selectedFinancialYear:
+      new Date().getFullYear(),
+
+    setSelectedFinancialYear: (
+      year
+    ) =>
+      set({
+        selectedFinancialYear: year
+      }),
+
+    loadTransactions: async (
+      userId
+    ) => {
+      const pageSize = 1000
+
+      let from = 0
+
+      let allTransactions:
+        Transaction[] = []
+
+      while (true) {
+        const { data, error } =
+          await supabase
+            .from("transactions")
+            .select("*")
+            .eq("user_id", userId)
+
+            /*
+              A ordenação precisa ter critérios
+              de desempate, pois muitos registros
+              podem possuir a mesma data.
+            */
+            .order("date", {
+              ascending: false
+            })
+            .order("created_at", {
+              ascending: false,
+              nullsFirst: false
+            })
+            .order("id", {
+              ascending: false
+            })
+            .range(
+              from,
+              from + pageSize - 1
+            )
+
+        if (error) {
+          console.error(
+            "Erro ao carregar os lançamentos:",
+            error
+          )
+
+          return
+        }
+
+        if (
+          !data ||
+          data.length === 0
+        ) {
+          break
+        }
+
+        /*
+          Deduplica a cada página para impedir
+          que um ID repetido entre no estado.
+        */
+        allTransactions =
+          normalizeTransactions([
+            ...allTransactions,
+            ...(data as Transaction[])
+          ])
+
+        if (
+          data.length < pageSize
+        ) {
+          break
+        }
+
+        from += pageSize
+      }
+
+      set({
+        transactions:
+          normalizeTransactions(
+            allTransactions
+          )
+      })
+    },
+
+    addTransaction: async (
+      transaction,
+      userId
+    ) => {
+      const { data, error } =
+        await supabase
+          .from("transactions")
+          .insert([
+            {
+              ...transaction,
+              user_id: userId
+            }
+          ])
+          .select()
 
       if (error) {
-        console.error(error)
+        console.error(
+          "Erro ao adicionar o lançamento:",
+          error
+        )
+
         return
       }
 
-      if (!data || data.length === 0) {
-        break
+      const insertedTransactions =
+        (data ??
+          []) as Transaction[]
+
+      /*
+        Não adiciona cegamente ao fim.
+        O Map impede que o mesmo ID fique
+        duas vezes no estado do Zustand.
+      */
+      set((state) => ({
+        transactions:
+          normalizeTransactions([
+            ...state.transactions,
+            ...insertedTransactions
+          ])
+      }))
+    },
+
+    updateTransaction: async (
+      id,
+      updatedTransaction
+    ) => {
+      const { error } =
+        await supabase
+          .from("transactions")
+          .update(
+            updatedTransaction
+          )
+          .eq("id", id)
+
+      if (error) {
+        console.error(
+          "Erro ao atualizar o lançamento:",
+          error
+        )
+
+        return
       }
 
-      allTransactions = [...allTransactions, ...(data as Transaction[])]
+      set((state) => ({
+        transactions:
+          normalizeTransactions(
+            state.transactions.map(
+              (transaction) =>
+                transaction.id === id
+                  ? {
+                      ...transaction,
+                      ...updatedTransaction,
+                      id
+                    }
+                  : transaction
+            )
+          )
+      }))
+    },
 
-      if (data.length < pageSize) {
-        break
+    deleteTransaction: async (
+      id
+    ) => {
+      const { error } =
+        await supabase
+          .from("transactions")
+          .delete()
+          .eq("id", id)
+
+      if (error) {
+        console.error(
+          "Erro ao excluir o lançamento:",
+          error
+        )
+
+        return
       }
 
-      from += pageSize
+      set((state) => ({
+        transactions:
+          state.transactions.filter(
+            (transaction) =>
+              transaction.id !== id
+          )
+      }))
     }
-
-    set({ transactions: allTransactions })
-  },
-
-  addTransaction: async (transaction, userId) => {
-
-    const { data, error } = await supabase
-      .from("transactions")
-      .insert([{ ...transaction, user_id: userId }])
-      .select()
-
-    if (error) {
-      console.error(error)
-      return
-    }
-
-    set((state) => ({
-      transactions: [...state.transactions, ...(data as Transaction[])]
-    }))
-
-  },
-
-  updateTransaction: async (id, updated) => {
-
-    const { error } = await supabase
-      .from("transactions")
-      .update(updated)
-      .eq("id", id)
-
-    if (error) {
-      console.error(error)
-      return
-    }
-
-    set((state) => ({
-      transactions: state.transactions.map((t) =>
-        t.id === id ? { ...updated, id } : t
-      )
-    }))
-
-  },
-
-  deleteTransaction: async (id) => {
-
-    const { error } = await supabase
-      .from("transactions")
-      .delete()
-      .eq("id", id)
-
-    if (error) {
-      console.error(error)
-      return
-    }
-
-    set((state) => ({
-      transactions: state.transactions.filter((t) => t.id !== id)
-    }))
-
-  }
-
-}))
+  }))

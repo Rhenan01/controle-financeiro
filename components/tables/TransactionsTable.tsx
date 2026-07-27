@@ -24,8 +24,8 @@ type Transaction = {
   value: number
   status: "PAGO" | "PREVISTO"
   payment: string
-  card?: string
-  installment?: string
+  card?: string | null
+  installment?: string | null
   related_transaction_id?: string | null
   related_transaction_role?: "PRINCIPAL" | "ESTORNO_REEMBOLSO" | null
 }
