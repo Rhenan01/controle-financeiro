@@ -1,470 +1,1274 @@
 "use client"
 
-import { useState, useMemo, useEffect } from "react"
+import {
+  useState,
+  useMemo,
+  useEffect
+} from "react"
+
+import dynamic from "next/dynamic"
+
 import { supabase } from "@/lib/supabase"
-import { useFinanceStore } from "@/store/financeStore"
+
+import {
+  useFinanceStore
+} from "@/store/financeStore"
 
 import MonthlyFlow from "../../../components/charts/MonthlyFlow"
-import dynamic from "next/dynamic"
+
 import CreditCardsStatus from "../../../components/cards/CreditCardsStatus"
+
 import TransactionsPreview from "@/components/tables/TransactionsPreview"
 
+
 const CategoryDonut = dynamic(
-  () => import("../../../components/charts/CategoryDonut"),
-  { ssr: false }
+  () =>
+    import(
+      "../../../components/charts/CategoryDonut"
+    ),
+  {
+    ssr: false
+  }
 )
 
+
 const BalanceTrend = dynamic(
-  () => import("../../../components/charts/BalanceTrend"),
-  { ssr: false }
+  () =>
+    import(
+      "../../../components/charts/BalanceTrend"
+    ),
+  {
+    ssr: false
+  }
 )
+
 
 export default function Dashboard() {
 
-  const transactions = useFinanceStore((s)=>s.transactions)
-  const loadTransactions = useFinanceStore((s)=>s.loadTransactions)
+  const transactions =
+    useFinanceStore(
+      (s) => s.transactions
+    )
 
-  const [salaryDays,setSalaryDays] = useState<string[]>([])
-
-  const [monthFilter,setMonthFilter] = useState<string>("")
-  const selectedYear = useFinanceStore((s) => s.selectedFinancialYear)
-  const setSelectedYear = useFinanceStore((s) => s.setSelectedFinancialYear)
-
-  useEffect(()=>{
-
-    async function init(){
-
-      const { data } = await supabase.auth.getUser()
-      const user = data.user
-
-      if(!user) return
-
-      await loadTransactions(user.id)
-
-      const { data:days } = await supabase
-        .from("salary_days")
-        .select("payment_date")
-        .order("payment_date")
-
-      if(days){
-
-        const list = days.map(d=>d.payment_date)
-
-        setSalaryDays(list)
-
-      }
-
-    }
-
-    init()
-
-  },[loadTransactions])
+  const loadTransactions =
+    useFinanceStore(
+      (s) => s.loadTransactions
+    )
 
 
+  const [
+    salaryDays,
+    setSalaryDays
+  ] = useState<string[]>([])
 
-  const financialMonths = useMemo(() => {
-    if (salaryDays.length < 2) return []
 
-    function parseDate(dateStr: string) {
-      const [year, month, day] = dateStr.split("-").map(Number)
-      return new Date(year, month - 1, day)
-    }
+  const [
+    monthFilter,
+    setMonthFilter
+  ] = useState<string>("")
 
-    function toISO(date: Date) {
-      const year = date.getFullYear()
-      const month = String(date.getMonth() + 1).padStart(2, "0")
-      const day = String(date.getDate()).padStart(2, "0")
-      return `${year}-${month}-${day}`
-    }
 
-    const months: {
-      start: string
-      end: string
-      label: string
-      shortLabel: string
-      year: number
-      month: number
-    }[] = []
+  const selectedYear =
+    useFinanceStore(
+      (s) =>
+        s.selectedFinancialYear
+    )
 
-    for (let i = 0; i < salaryDays.length - 1; i++) {
-      const start = salaryDays[i]
-      const next = salaryDays[i + 1]
 
-      const startDate = parseDate(start)
-      const nextDate = parseDate(next)
-
-      const endDate = new Date(nextDate)
-      endDate.setDate(endDate.getDate() - 1)
-
-      const end = toISO(endDate)
-
-      // Conta quantos dias do período caem em cada mês/ano
-      const daysPerMonth = new Map<string, number>()
-      const cursor = new Date(startDate)
-
-      while (cursor <= endDate) {
-        const key = `${cursor.getFullYear()}-${cursor.getMonth()}` // ex: 2026-4
-        daysPerMonth.set(key, (daysPerMonth.get(key) ?? 0) + 1)
-        cursor.setDate(cursor.getDate() + 1)
-      }
-
-      // Em caso de empate, prefere o mês do endDate
-      const preferredKey = `${endDate.getFullYear()}-${endDate.getMonth()}`
-
-      let chosenKey = ""
-      let maxDays = -1
-
-      for (const [key, count] of daysPerMonth.entries()) {
-        if (
-          count > maxDays ||
-          (count === maxDays && key === preferredKey)
-        ) {
-          chosenKey = key
-          maxDays = count
-        }
-      }
-
-      const [yearStr, monthIndexStr] = chosenKey.split("-")
-      const chosenYear = Number(yearStr)
-      const chosenMonthIndex = Number(monthIndexStr)
-
-      const referenceDate = new Date(chosenYear, chosenMonthIndex, 1)
-
-      const shortLabelBase = referenceDate
-        .toLocaleDateString("pt-BR", { month: "short" })
-        .replace(".", "")
-
-      const shortLabel =
-        shortLabelBase.charAt(0).toUpperCase() + shortLabelBase.slice(1)
-
-      months.push({
-        start,
-        end,
-        shortLabel,
-        label: `${shortLabel}/${chosenYear}`,
-        year: chosenYear,
-        month: chosenMonthIndex + 1
-      })
-    }
-
-    return months
-  }, [salaryDays])
-  const availableYears = useMemo(() => {
-  const years = financialMonths.map((m) => m.year)
-  return [...new Set(years)].sort((a, b) => a - b)
-}, [financialMonths])
-const financialMonthsOfYear = useMemo(() => {
-  return financialMonths.filter((m) => m.year === selectedYear)
-}, [financialMonths, selectedYear])
-const financialYearStart = financialMonthsOfYear[0]?.start ?? ""
-const financialYearEnd =
-  financialMonthsOfYear[financialMonthsOfYear.length - 1]?.end ?? ""
+  const setSelectedYear =
+    useFinanceStore(
+      (s) =>
+        s.setSelectedFinancialYear
+    )
 
 
   useEffect(() => {
-    if (financialMonthsOfYear.length === 0) {
-      setMonthFilter("")
-      return
+
+    async function init() {
+
+      try {
+
+        const {
+          data,
+          error
+        } =
+          await supabase.auth.getSession()
+
+
+        if (error) {
+          return
+        }
+
+
+        const user =
+          data.session?.user
+
+
+        if (!user) {
+          return
+        }
+
+
+        await loadTransactions(
+          user.id
+        )
+
+
+        const {
+          data: days,
+          error: daysError
+        } =
+          await supabase
+            .from(
+              "salary_days"
+            )
+            .select(
+              "payment_date"
+            )
+            .order(
+              "payment_date"
+            )
+
+
+        if (
+          !daysError &&
+          days
+        ) {
+
+          const list =
+            days.map(
+              (d) =>
+                d.payment_date
+            )
+
+          setSalaryDays(
+            list
+          )
+
+        }
+
+      } catch {
+
+        return
+
+      }
+
     }
 
-    const today = new Date().toISOString().slice(0, 10)
 
-    const current = financialMonthsOfYear.find(
-      (m) => today >= m.start && today <= m.end
+    init()
+
+  }, [loadTransactions])
+
+
+  const financialMonths =
+    useMemo(() => {
+
+      if (
+        salaryDays.length < 2
+      ) {
+
+        return []
+
+      }
+
+
+      function parseDate(
+        dateStr: string
+      ) {
+
+        const [
+          year,
+          month,
+          day
+        ] =
+          dateStr
+            .split("-")
+            .map(Number)
+
+
+        return new Date(
+          year,
+          month - 1,
+          day
+        )
+
+      }
+
+
+      function toISO(
+        date: Date
+      ) {
+
+        const year =
+          date.getFullYear()
+
+        const month =
+          String(
+            date.getMonth() + 1
+          ).padStart(
+            2,
+            "0"
+          )
+
+        const day =
+          String(
+            date.getDate()
+          ).padStart(
+            2,
+            "0"
+          )
+
+
+        return `${year}-${month}-${day}`
+
+      }
+
+
+      const months: {
+        start: string
+        end: string
+        label: string
+        shortLabel: string
+        year: number
+        month: number
+      }[] = []
+
+
+      for (
+        let i = 0;
+        i <
+        salaryDays.length - 1;
+        i++
+      ) {
+
+        const start =
+          salaryDays[i]
+
+        const next =
+          salaryDays[i + 1]
+
+
+        const startDate =
+          parseDate(start)
+
+        const nextDate =
+          parseDate(next)
+
+
+        const endDate =
+          new Date(nextDate)
+
+        endDate.setDate(
+          endDate.getDate() - 1
+        )
+
+
+        const end =
+          toISO(endDate)
+
+
+        // Conta quantos dias do período
+        // pertencem a cada mês
+        const daysPerMonth =
+          new Map<
+            string,
+            number
+          >()
+
+
+        const cursor =
+          new Date(
+            startDate
+          )
+
+
+        while (
+          cursor <= endDate
+        ) {
+
+          const key =
+            `${cursor.getFullYear()}-${cursor.getMonth()}`
+
+
+          daysPerMonth.set(
+            key,
+            (
+              daysPerMonth.get(
+                key
+              ) ?? 0
+            ) + 1
+          )
+
+
+          cursor.setDate(
+            cursor.getDate() + 1
+          )
+
+        }
+
+
+        // Em caso de empate,
+        // prefere o mês do fim do período
+        const preferredKey =
+          `${endDate.getFullYear()}-${endDate.getMonth()}`
+
+
+        let chosenKey = ""
+        let maxDays = -1
+
+
+        for (
+          const [
+            key,
+            count
+          ] of
+          daysPerMonth.entries()
+        ) {
+
+          if (
+            count > maxDays ||
+            (
+              count === maxDays &&
+              key ===
+                preferredKey
+            )
+          ) {
+
+            chosenKey =
+              key
+
+            maxDays =
+              count
+
+          }
+
+        }
+
+
+        const [
+          yearStr,
+          monthIndexStr
+        ] =
+          chosenKey.split("-")
+
+
+        const chosenYear =
+          Number(yearStr)
+
+        const chosenMonthIndex =
+          Number(
+            monthIndexStr
+          )
+
+
+        const referenceDate =
+          new Date(
+            chosenYear,
+            chosenMonthIndex,
+            1
+          )
+
+
+        const shortLabelBase =
+          referenceDate
+            .toLocaleDateString(
+              "pt-BR",
+              {
+                month: "short"
+              }
+            )
+            .replace(
+              ".",
+              ""
+            )
+
+
+        const shortLabel =
+          shortLabelBase
+            .charAt(0)
+            .toUpperCase() +
+          shortLabelBase
+            .slice(1)
+
+
+        months.push({
+          start,
+          end,
+          shortLabel,
+          label:
+            `${shortLabel}/${chosenYear}`,
+          year:
+            chosenYear,
+          month:
+            chosenMonthIndex + 1
+        })
+
+      }
+
+
+      return months
+
+    }, [salaryDays])
+
+
+  const availableYears =
+    useMemo(() => {
+
+      const years =
+        financialMonths.map(
+          (m) => m.year
+        )
+
+      return [
+        ...new Set(years)
+      ].sort(
+        (a, b) =>
+          a - b
+      )
+
+    }, [financialMonths])
+
+
+  const financialMonthsOfYear =
+    useMemo(() => {
+
+      return financialMonths.filter(
+        (m) =>
+          m.year ===
+          selectedYear
+      )
+
+    }, [
+      financialMonths,
+      selectedYear
+    ])
+
+
+  const financialYearEnd =
+    financialMonthsOfYear[
+      financialMonthsOfYear.length -
+        1
+    ]?.end ?? ""
+
+
+  useEffect(() => {
+
+    if (
+      financialMonthsOfYear.length ===
+      0
+    ) {
+
+      setMonthFilter("")
+      return
+
+    }
+
+
+    const today =
+      new Date()
+        .toISOString()
+        .slice(0, 10)
+
+
+    const current =
+      financialMonthsOfYear.find(
+        (m) =>
+          today >= m.start &&
+          today <= m.end
+      )
+
+
+    setMonthFilter(
+      current?.label ??
+        financialMonthsOfYear[0]
+          .label
     )
 
-    setMonthFilter(current?.label ?? financialMonthsOfYear[0].label)
   }, [financialMonthsOfYear])
 
 
+  const financialRange =
+    useMemo(() => {
 
-  const months = financialMonthsOfYear.map((m) => m.label)
+      return financialMonthsOfYear.find(
+        (m) =>
+          m.label ===
+          monthFilter
+      )
 
-
-
-const financialRange = useMemo(() => {
-  return financialMonthsOfYear.find((m) => m.label === monthFilter)
-}, [financialMonthsOfYear, monthFilter])
-
-
-
-  const filteredTransactions = useMemo(()=>{
-
-    if(!financialRange) return transactions
-
-    return transactions.filter(t=>
-
-      t.date >= financialRange.start &&
-      t.date <= financialRange.end
-
-    )
-
-  },[transactions,financialRange])
+    }, [
+      financialMonthsOfYear,
+      monthFilter
+    ])
 
 
+  const filteredTransactions =
+    useMemo(() => {
 
-  const currentMonthStart = useMemo(()=>{
+      if (!financialRange) {
 
-    if(financialMonths.length === 0) return ""
-
-    const today = new Date().toISOString().slice(0,10)
-
-    const current = financialMonths.find(m=>
-      today >= m.start && today <= m.end
-    )
-
-    return current?.start ?? financialMonths[0].start
-
-  },[financialMonths])
-
-
-
-  const metrics = useMemo(()=>{
-
-    let entradasPagas = 0
-    let saidasPagas = 0
-
-    let entradasPrev = 0
-    let saidasPrev = 0
-
-    filteredTransactions.forEach(t=>{
-
-      if(t.status === "PAGO"){
-
-        if(t.type === "ENTRADA") entradasPagas += t.value
-        if(t.type === "SAÍDA") saidasPagas += t.value
+        return transactions
 
       }
 
-      if(t.status === "PREVISTO"){
 
-        if(t.type === "ENTRADA") entradasPrev += t.value
-        if(t.type === "SAÍDA") saidasPrev += t.value
+      return transactions.filter(
+        (t) =>
+
+          t.date >=
+            financialRange.start &&
+
+          t.date <=
+            financialRange.end
+      )
+
+    }, [
+      transactions,
+      financialRange
+    ])
+
+
+  const currentMonthStart =
+    useMemo(() => {
+
+      if (
+        financialMonths.length ===
+        0
+      ) {
+
+        return ""
 
       }
 
-    })
+
+      const today =
+        new Date()
+          .toISOString()
+          .slice(0, 10)
 
 
+      const current =
+        financialMonths.find(
+          (m) =>
+            today >= m.start &&
+            today <= m.end
+        )
 
-    let entradasPagasLiquido = 0
-    let saidasPagasLiquido = 0
-    let entradasPrevLiquido = 0
-    let saidasPrevLiquido = 0
 
+      return (
+        current?.start ??
+        financialMonths[0].start
+      )
+
+    }, [financialMonths])
+
+
+  const metrics =
+    useMemo(() => {
+
+      let entradasPagas = 0
+      let saidasPagas = 0
+
+      let entradasPrev = 0
+      let saidasPrev = 0
+
+
+      filteredTransactions.forEach(
+        (t) => {
+
+          if (
+            t.status === "PAGO"
+          ) {
+
+            if (
+              t.type ===
+              "ENTRADA"
+            ) {
+
+              entradasPagas +=
+                t.value
+
+            }
+
+
+            if (
+              t.type ===
+              "SAÍDA"
+            ) {
+
+              saidasPagas +=
+                t.value
+
+            }
+
+          }
+
+
+          if (
+            t.status ===
+            "PREVISTO"
+          ) {
+
+            if (
+              t.type ===
+              "ENTRADA"
+            ) {
+
+              entradasPrev +=
+                t.value
+
+            }
+
+
+            if (
+              t.type ===
+              "SAÍDA"
+            ) {
+
+              saidasPrev +=
+                t.value
+
+            }
+
+          }
+
+        }
+      )
+
+
+      let entradasPagasLiquido =
+        0
+
+      let saidasPagasLiquido =
+        0
+
+      let entradasPrevLiquido =
+        0
+
+      let saidasPrevLiquido =
+        0
 
 
       transactions
+
         .filter(
           (t) =>
-            t.date >= currentMonthStart &&
-            t.date <= financialYearEnd
+
+            t.date >=
+              currentMonthStart &&
+
+            t.date <=
+              financialYearEnd
         )
-        .forEach((t) => {
 
-        if(t.status === "PAGO"){
+        .forEach(
+          (t) => {
 
-          if(t.type === "ENTRADA") entradasPagasLiquido += t.value
-          if(t.type === "SAÍDA") saidasPagasLiquido += t.value
+            if (
+              t.status ===
+              "PAGO"
+            ) {
 
-        }
+              if (
+                t.type ===
+                "ENTRADA"
+              ) {
 
-        if(t.status === "PREVISTO"){
+                entradasPagasLiquido +=
+                  t.value
 
-          if(t.type === "ENTRADA") entradasPrevLiquido += t.value
-          if(t.type === "SAÍDA") saidasPrevLiquido += t.value
-
-        }
-
-      })
-
-
-
-    const saldo = entradasPagas - saidasPagas
-
-    const liquidoMes =
-      (entradasPagas - saidasPagas) +
-      (entradasPrev - saidasPrev)
-
-    const liquidoAcumulado =
-      (entradasPagasLiquido - saidasPagasLiquido) +
-      (entradasPrevLiquido - saidasPrevLiquido)
+              }
 
 
+              if (
+                t.type ===
+                "SAÍDA"
+              ) {
 
-    return{
-      saldo,
-      liquidoMes,
-      liquidoAcumulado
-    }
+                saidasPagasLiquido +=
+                  t.value
 
-  }, [filteredTransactions, transactions, currentMonthStart, financialYearEnd])
+              }
 
+            }
 
 
-  function money(v:number){
+            if (
+              t.status ===
+              "PREVISTO"
+            ) {
 
-    return v.toLocaleString("pt-BR",{
-      style:"currency",
-      currency:"BRL"
-    })
+              if (
+                t.type ===
+                "ENTRADA"
+              ) {
+
+                entradasPrevLiquido +=
+                  t.value
+
+              }
+
+
+              if (
+                t.type ===
+                "SAÍDA"
+              ) {
+
+                saidasPrevLiquido +=
+                  t.value
+
+              }
+
+            }
+
+          }
+        )
+
+
+      const saldo =
+        entradasPagas -
+        saidasPagas
+
+
+      const liquidoMes =
+        (
+          entradasPagas -
+          saidasPagas
+        ) +
+        (
+          entradasPrev -
+          saidasPrev
+        )
+
+
+      const liquidoAcumulado =
+        (
+          entradasPagasLiquido -
+          saidasPagasLiquido
+        ) +
+        (
+          entradasPrevLiquido -
+          saidasPrevLiquido
+        )
+
+
+      return {
+        saldo,
+        liquidoMes,
+        liquidoAcumulado
+      }
+
+    }, [
+      filteredTransactions,
+      transactions,
+      currentMonthStart,
+      financialYearEnd
+    ])
+
+
+  function money(
+    v: number
+  ) {
+
+    return v.toLocaleString(
+      "pt-BR",
+      {
+        style: "currency",
+        currency: "BRL"
+      }
+    )
 
   }
 
 
+  function formatDate(
+    date: string
+  ) {
 
-  function formatDate(date:string){
+    const [
+      y,
+      m,
+      d
+    ] =
+      date.split("-")
 
-    const [y,m,d] = date.split("-")
 
     return `${d}/${m}/${y}`
 
   }
 
 
+  if (
+    financialMonthsOfYear.length ===
+    0
+  ) {
 
-  if (financialMonthsOfYear.length === 0) {
     return (
-      <div className="w-full min-w-0 p-2 sm:p-4 lg:p-6">
-        <div className="mb-4 bg-white/70 backdrop-blur-sm border border-gray-200 p-3 rounded-2xl shadow-sm">
-          <div className="flex w-full flex-wrap items-center justify-start gap-3">
 
-            {availableYears.map((year) => {
-              const active = selectedYear === year
+      <div
+        className="
+          w-full
+          min-w-0
+          p-2
+          sm:p-4
+          lg:p-6
+        "
+      >
+
+        <div
+          className="
+            mb-4
+            rounded-2xl
+            border
+            border-gray-200
+            bg-white/70
+            p-3
+            shadow-sm
+            backdrop-blur-sm
+          "
+        >
+
+          <div
+            className="
+              flex
+              w-full
+              flex-wrap
+              items-center
+              justify-start
+              gap-3
+            "
+          >
+
+            {availableYears.map(
+              (year) => {
+
+                const active =
+                  selectedYear ===
+                  year
+
+
+                return (
+
+                  <button
+                    key={year}
+                    onClick={() =>
+                      setSelectedYear(
+                        year
+                      )
+                    }
+                    className={`
+                      min-w-[110px]
+                      flex-1
+                      rounded-xl
+                      px-4
+                      py-2.5
+                      text-sm
+                      font-semibold
+                      transition-all
+                      duration-300
+                      sm:flex-none
+
+                      ${
+                        active
+
+                          ? `
+                            scale-[1.04]
+                            bg-gradient-to-r
+                            from-blue-600
+                            to-indigo-600
+                            text-white
+                            shadow-lg
+                          `
+
+                          : `
+                            border
+                            border-gray-200
+                            bg-white
+                            text-slate-600
+
+                            hover:-translate-y-0.5
+                            hover:border-blue-200
+                            hover:bg-blue-50
+                            hover:text-blue-700
+                          `
+                      }
+                    `}
+                  >
+                    {year}
+                  </button>
+
+                )
+
+              }
+            )}
+
+          </div>
+
+        </div>
+
+
+        <div
+          className="
+            rounded-xl
+            border
+            border-gray-200
+            bg-white
+            p-6
+            text-slate-600
+          "
+        >
+          Não há períodos financeiros cadastrados para este ano.
+        </div>
+
+      </div>
+
+    )
+
+  }
+
+
+  if (!financialRange) {
+    return null
+  }
+
+
+  return (
+
+    <div
+      className="
+        w-full
+        min-w-0
+        p-2
+        sm:p-4
+        lg:p-6
+      "
+    >
+
+      {/* Anos */}
+      <div
+        className="
+          mb-4
+          rounded-2xl
+          border
+          border-gray-200
+          bg-white/70
+          p-3
+          shadow-sm
+          backdrop-blur-sm
+        "
+      >
+
+        <div
+          className="
+            flex
+            w-full
+            flex-wrap
+            items-center
+            justify-start
+            gap-3
+          "
+        >
+
+          {availableYears.map(
+            (year) => {
+
+              const active =
+                selectedYear ===
+                year
+
 
               return (
+
                 <button
                   key={year}
-                  onClick={() => setSelectedYear(year)}
-                  className={`min-w-[110px] flex-1 px-4 py-2.5 sm:flex-none text-sm font-semibold rounded-xl transition-all duration-300
-                  ${
-                    active
-                      ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg scale-[1.04]"
-                      : "bg-white text-slate-600 border border-gray-200 hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700 hover:-translate-y-0.5"
-                  }`}
+                  onClick={() =>
+                    setSelectedYear(
+                      year
+                    )
+                  }
+                  className={`
+                    min-w-[110px]
+                    flex-1
+                    rounded-xl
+                    px-4
+                    py-2.5
+                    text-sm
+                    font-semibold
+                    transition-all
+                    duration-300
+                    sm:flex-none
+
+                    ${
+                      active
+
+                        ? `
+                          scale-[1.04]
+                          bg-gradient-to-r
+                          from-blue-600
+                          to-indigo-600
+                          text-white
+                          shadow-lg
+                        `
+
+                        : `
+                          border
+                          border-gray-200
+                          bg-white
+                          text-slate-600
+
+                          hover:-translate-y-0.5
+                          hover:border-blue-200
+                          hover:bg-blue-50
+                          hover:text-blue-700
+                        `
+                    }
+                  `}
                 >
                   {year}
                 </button>
+
               )
-            })}
-          </div>
+
+            }
+          )}
+
         </div>
 
-        <div className="bg-white border border-gray-200 rounded-xl p-6 text-slate-600">
-          Não há períodos financeiros cadastrados para este ano.
-        </div>
       </div>
-    )
-  }
-
-if (!financialRange) return null
 
 
+      {/* Período */}
+      <div
+        className="
+          mb-2
+          text-sm
+          text-gray-500
+        "
+      >
 
-  return(
+        📅{" "}
 
-    <div className="w-full min-w-0 p-2 sm:p-4 lg:p-6">
+        <span
+          className="
+            font-medium
+            text-gray-700
+          "
+        >
 
-    <div className="mb-4 bg-white/70 backdrop-blur-sm border border-gray-200 p-3 rounded-2xl shadow-sm">
-      <div className="flex w-full flex-wrap items-center justify-start gap-3">
+          {formatDate(
+            financialRange.start
+          )}
 
-        {availableYears.map((year) => {
-          const active = selectedYear === year
+          {" → "}
 
-          return (
-            <button
-              key={year}
-              onClick={() => setSelectedYear(year)}
-              className={`min-w-[110px] flex-1 px-4 py-2.5 sm:flex-none text-sm font-semibold rounded-xl transition-all duration-300
-              ${
-                active
-                  ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg scale-[1.04]"
-                  : "bg-white text-slate-600 border border-gray-200 hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700 hover:-translate-y-0.5"
-              }`}
-            >
-              {year}
-            </button>
-          )
-        })}
-      </div>
-    </div>
-
-      <div className="mb-2 text-sm text-gray-500">
-
-        📅 <span className="font-medium text-gray-700">
-
-        {formatDate(financialRange.start)} → {formatDate(financialRange.end)}
+          {formatDate(
+            financialRange.end
+          )}
 
         </span>
 
       </div>
 
 
+      {/* Meses */}
+      <div
+        className="
+          mb-6
+          rounded-2xl
+          border
+          border-gray-200
+          bg-white/60
+          p-2
+          shadow-sm
+          backdrop-blur-sm
+        "
+      >
 
-      <div className="mb-6 bg-white/60 backdrop-blur-sm border border-gray-200 p-2 rounded-2xl shadow-sm">
+        <div
+          className="
+            grid
+            grid-cols-6
+            gap-1.5
+            sm:grid-cols-12
+            sm:gap-2
+          "
+        >
 
-        <div className="grid grid-cols-6 gap-1.5 sm:grid-cols-12 sm:gap-2">
+          {financialMonthsOfYear.map(
+            (month) => {
 
-          {financialMonthsOfYear.map((month) => {
-            const active = monthFilter === month.label
+              const active =
+                monthFilter ===
+                month.label
 
-            return (
-              <button
-                key={month.label}
-                onClick={() => setMonthFilter(month.label)}
-                className={`py-2 text-xs font-medium sm:text-sm rounded-xl transition-all duration-200
-                ${
-                  active
-                    ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md scale-[1.05]"
-                    : "text-gray-600 hover:bg-gray-200"
-                }`}
-              >
-                {month.shortLabel}
-              </button>
-            )
-          })}
+
+              return (
+
+                <button
+                  key={month.label}
+                  onClick={() =>
+                    setMonthFilter(
+                      month.label
+                    )
+                  }
+                  className={`
+                    rounded-xl
+                    py-2
+                    text-xs
+                    font-medium
+                    transition-all
+                    duration-200
+                    sm:text-sm
+
+                    ${
+                      active
+
+                        ? `
+                          scale-[1.05]
+                          bg-gradient-to-r
+                          from-blue-600
+                          to-indigo-600
+                          text-white
+                          shadow-md
+                        `
+
+                        : `
+                          text-gray-600
+                          hover:bg-gray-200
+                        `
+                    }
+                  `}
+                >
+                  {month.shortLabel}
+                </button>
+
+              )
+
+            }
+          )}
 
         </div>
 
       </div>
 
 
+      {/* Indicadores */}
+      <div
+        className="
+          grid
+          grid-cols-1
+          gap-3
+          sm:grid-cols-3
+          sm:gap-4
+          xl:gap-6
+        "
+      >
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4 xl:gap-8">
+        <Card
+          title="Saldo do mês"
+          value={
+            money(
+              metrics.saldo
+            )
+          }
+          dynamic={
+            metrics.saldo
+          }
+        />
 
-        <Card title="Saldo do mês" value={money(metrics.saldo)} dynamic={metrics.saldo} />
+        <Card
+          title="Líquido do mês"
+          value={
+            money(
+              metrics.liquidoMes
+            )
+          }
+          dynamic={
+            metrics.liquidoMes
+          }
+        />
 
-        <Card title="Líquido do mês" value={money(metrics.liquidoMes)} dynamic={metrics.liquidoMes} />
-
-        <Card title="Líquido acumulado" value={money(metrics.liquidoAcumulado)} dynamic={metrics.liquidoAcumulado} />
+        <Card
+          title="Líquido acumulado"
+          value={
+            money(
+              metrics.liquidoAcumulado
+            )
+          }
+          dynamic={
+            metrics.liquidoAcumulado
+          }
+        />
 
       </div>
 
 
+      {/* Gráfico + cartões */}
+      <div
+        className="
+          mt-6
+          grid
+          grid-cols-1
+          items-stretch
+          gap-6
+          xl:grid-cols-2
+        "
+      >
 
-      <div className="mt-8 grid grid-cols-1 xl:grid-cols-2 gap-6">
+        <div className="min-w-0">
+          <BalanceTrend
+            financialMonths={
+              financialMonthsOfYear
+            }
+          />
+        </div>
 
-        <BalanceTrend financialMonths={financialMonthsOfYear} />
-
-        <CreditCardsStatus financialRange={financialRange} />
+        <div className="min-w-0">
+          <CreditCardsStatus
+            financialRange={
+              financialRange
+            }
+          />
+        </div>
 
       </div>
 
 
+      {/* Fluxo + categorias */}
+      <div
+        className="
+          mt-6
+          grid
+          grid-cols-1
+          gap-6
+          xl:grid-cols-2
+        "
+      >
 
-      <div className="mt-6 grid grid-cols-1 xl:grid-cols-2 gap-6">
+        <MonthlyFlow
+          financialMonths={
+            financialMonthsOfYear
+          }
+        />
 
-        <MonthlyFlow financialMonths={financialMonthsOfYear} />
-
-        <CategoryDonut financialRange={financialRange} />
+        <CategoryDonut
+          financialRange={
+            financialRange
+          }
+        />
 
       </div>
 
 
-
+      {/* Últimos lançamentos */}
       <div className="mt-6">
 
-        <TransactionsPreview financialRange={financialRange} />
+        <TransactionsPreview
+          financialRange={
+            financialRange
+          }
+        />
 
       </div>
 
@@ -475,21 +1279,80 @@ if (!financialRange) return null
 }
 
 
+function Card({
+  title,
+  value,
+  dynamic
+}: {
+  title: string
+  value: string
+  dynamic: number
+}) {
 
-function Card({title,value,dynamic}:any){
+  let color =
+    "text-slate-800"
 
-  let color = "text-slate-800"
 
-  if(dynamic >= 0) color = "text-emerald-600"
-  if(dynamic < 0) color = "text-rose-500"
+  if (dynamic >= 0) {
 
-  return(
+    color =
+      "text-emerald-600"
 
-    <div className="min-w-0 overflow-hidden rounded-2xl border border-gray-200 bg-white/80 p-5 shadow-lg backdrop-blur-sm transition-all duration-300 hover:shadow-xl sm:p-6">
+  }
 
-      <p className="text-gray-500 text-sm mb-2">{title}</p>
 
-      <h2 className={`break-words text-[clamp(1.35rem,3vw,1.875rem)] font-semibold leading-tight tracking-tight ${color}`}>
+  if (dynamic < 0) {
+
+    color =
+      "text-rose-500"
+
+  }
+
+
+  return (
+
+    <div
+      className="
+        min-w-0
+        overflow-hidden
+        rounded-2xl
+        border
+        border-gray-200
+        bg-white/80
+        p-5
+        shadow-lg
+        backdrop-blur-sm
+
+        transition-all
+        duration-300
+
+        hover:shadow-xl
+
+        sm:p-6
+      "
+    >
+
+      <p
+        className="
+          mb-2
+          text-sm
+          text-gray-500
+        "
+      >
+        {title}
+      </p>
+
+      <h2
+        className={`
+          break-words
+          text-[clamp(1.35rem,3vw,1.875rem)]
+          font-semibold
+          leading-tight
+          tracking-tight
+
+          ${color}
+        `}
+      >
         {value}
       </h2>
 

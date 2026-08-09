@@ -837,10 +837,10 @@ export default function SalaryDaysTable() {
   }
 
   return (
-    <div className="space-y-5">
+    <div className="min-w-0 space-y-4 sm:space-y-5">
       {/* REGRA AUTOMÁTICA */}
-      <div className="rounded-xl border border-gray-200 bg-white shadow">
-        <div className="border-b p-4">
+      <div className="min-w-0 overflow-hidden rounded-xl border border-gray-200 bg-white shadow">
+        <div className="border-b p-3 sm:p-4">
           <h3 className="font-medium text-slate-700">
             Regra automática do salário
           </h3>
@@ -851,7 +851,7 @@ export default function SalaryDaysTable() {
           </p>
         </div>
 
-        <div className="space-y-4 p-4">
+        <div className="space-y-4 p-3 sm:p-4">
           <div className="grid gap-4 md:grid-cols-2">
             <label className="space-y-1">
               <span className="text-sm font-medium text-slate-700">
@@ -902,14 +902,14 @@ export default function SalaryDaysTable() {
             </label>
           </div>
 
-          <div className="flex flex-wrap gap-2">
+          <div className="grid grid-cols-1 gap-2 sm:flex sm:flex-wrap">
             <button
               type="button"
               onClick={saveRule}
               disabled={
                 savingRule || generating
               }
-              className="inline-flex items-center justify-center gap-2 rounded-lg border border-blue-600 bg-white px-4 py-2 text-sm font-medium text-blue-600 transition hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-50"
+              className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-blue-600 bg-white px-4 py-2 text-sm font-medium text-blue-600 transition hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
             >
               {savingRule ? (
                 <Loader2
@@ -929,7 +929,7 @@ export default function SalaryDaysTable() {
                 generatePayments(1)
               }
               disabled={generating}
-              className="inline-flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+              className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300 sm:w-auto"
             >
               {generating ? (
                 <Loader2
@@ -949,7 +949,7 @@ export default function SalaryDaysTable() {
                 generatePayments(12)
               }
               disabled={generating}
-              className="inline-flex items-center justify-center gap-2 rounded-lg bg-slate-800 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-900 disabled:cursor-not-allowed disabled:bg-slate-300"
+              className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-slate-800 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-900 disabled:cursor-not-allowed disabled:bg-slate-300 sm:w-auto"
             >
               {generating ? (
                 <Loader2
@@ -981,8 +981,8 @@ export default function SalaryDaysTable() {
       </div>
 
       {/* DATAS GERADAS E MANUAIS */}
-      <div className="rounded-xl border border-gray-200 bg-white shadow">
-        <div className="flex items-center justify-between border-b p-4">
+      <div className="min-w-0 overflow-hidden rounded-xl border border-gray-200 bg-white shadow">
+        <div className="flex flex-col gap-3 border-b p-3 sm:flex-row sm:items-center sm:justify-between sm:p-4">
           <div>
             <span className="font-medium text-slate-700">
               Datas de pagamento
@@ -997,18 +997,18 @@ export default function SalaryDaysTable() {
           <button
             type="button"
             onClick={openNew}
-            className="rounded-lg bg-blue-600 px-3 py-1.5 text-sm text-white hover:bg-blue-700"
+            className="w-full rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700 sm:w-auto sm:py-1.5"
           >
             + Novo manual
           </button>
         </div>
 
-        <div className="max-h-[500px] space-y-2 overflow-y-auto p-4">
+        <div className="max-h-[500px] space-y-2 overflow-y-auto p-3 sm:p-4">
           {days.length > 0 ? (
             days.map((day) => (
               <div
                 key={day.id}
-                className="flex items-center justify-between rounded-lg bg-blue-50 px-3 py-2"
+                className="flex items-center justify-between gap-3 rounded-lg bg-blue-50 px-3 py-2"
               >
                 <span className="font-medium text-blue-700">
                   {formatDate(
@@ -1050,8 +1050,8 @@ export default function SalaryDaysTable() {
         </div>
       </div>
 {/* FERIADOS AUTOMÁTICOS DA API */}
-<div className="rounded-xl border border-gray-200 bg-white shadow">
-  <div className="flex flex-col gap-3 border-b p-4 sm:flex-row sm:items-center sm:justify-between">
+<div className="min-w-0 overflow-hidden rounded-xl border border-gray-200 bg-white shadow">
+  <div className="flex flex-col gap-3 border-b p-3 sm:flex-row sm:items-center sm:justify-between sm:p-4">
     <div>
       <h3 className="font-medium text-slate-700">
         Feriados automáticos
@@ -1093,7 +1093,7 @@ export default function SalaryDaysTable() {
     </label>
   </div>
 
-  <div className="p-4">
+  <div className="p-3 sm:p-4">
     {loadingApiHolidays ? (
       <div className="flex items-center justify-center gap-2 py-8 text-sm text-slate-500">
         <Loader2
@@ -1184,8 +1184,8 @@ export default function SalaryDaysTable() {
   </div>
 </div>
       {/* FERIADOS LOCAIS */}
-      <div className="rounded-xl border border-gray-200 bg-white shadow">
-        <div className="border-b p-4">
+      <div className="min-w-0 overflow-hidden rounded-xl border border-gray-200 bg-white shadow">
+        <div className="border-b p-3 sm:p-4">
           <h3 className="font-medium text-slate-700">
             Exceções e feriados adicionais
           </h3>
@@ -1198,8 +1198,8 @@ export default function SalaryDaysTable() {
           </p>
         </div>
 
-        <div className="space-y-4 p-4">
-          <div className="grid gap-3 md:grid-cols-[180px_minmax(0,1fr)_auto]">
+        <div className="space-y-4 p-3 sm:p-4">
+          <div className="grid min-w-0 gap-3 md:grid-cols-[180px_minmax(0,1fr)_auto]">
             <input
               type="date"
               value={holidayDate}
@@ -1225,7 +1225,7 @@ export default function SalaryDaysTable() {
             <button
               type="button"
               onClick={addCustomHoliday}
-              className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700"
+              className="w-full rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700 md:w-auto"
             >
               Adicionar
             </button>
@@ -1285,7 +1285,7 @@ export default function SalaryDaysTable() {
           }
         >
           <div
-            className="w-full max-w-[350px] space-y-4 rounded-xl bg-white p-6 shadow-xl"
+            className="max-h-[calc(100dvh-24px)] w-full max-w-[350px] space-y-4 overflow-y-auto rounded-2xl bg-white p-4 shadow-xl sm:p-6"
             onClick={(event) =>
               event.stopPropagation()
             }
@@ -1305,13 +1305,13 @@ export default function SalaryDaysTable() {
               className="w-full rounded-lg border border-gray-300 p-2.5 text-sm text-slate-900 outline-none focus:ring-2 focus:ring-blue-500"
             />
 
-            <div className="flex justify-end gap-3">
+            <div className="grid grid-cols-2 gap-2 sm:flex sm:justify-end sm:gap-3">
               <button
                 type="button"
                 onClick={() =>
                   setModalOpen(false)
                 }
-                className="text-gray-500"
+                className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-gray-500 transition hover:bg-slate-50"
               >
                 Cancelar
               </button>
@@ -1319,7 +1319,7 @@ export default function SalaryDaysTable() {
               <button
                 type="button"
                 onClick={saveManualDate}
-                className="rounded-lg bg-blue-600 px-3 py-1 text-white"
+                className="rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700"
               >
                 Salvar
               </button>

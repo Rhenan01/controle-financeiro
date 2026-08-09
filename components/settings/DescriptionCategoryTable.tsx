@@ -606,13 +606,13 @@ export default function DescriptionCategoryTable() {
       : null
 
   return (
-    <div className="rounded-xl border border-gray-200 bg-white shadow">
-      <div className="flex items-center justify-between border-b p-4">
-        <span className="font-medium text-slate-700">
+    <div className="min-w-0 overflow-hidden rounded-xl border border-gray-200 bg-white shadow">
+      <div className="flex flex-col gap-3 border-b p-3 sm:flex-row sm:items-center sm:justify-between sm:p-4">
+        <span className="text-sm font-medium text-slate-700 sm:text-base">
           Regras de categorização automática
         </span>
 
-        <div className="flex items-center gap-3">
+        <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end sm:gap-3">
           {selected.length > 0 && (
             <span className="text-sm text-slate-600">
               {selected.length} selecionado(s)
@@ -623,7 +623,7 @@ export default function DescriptionCategoryTable() {
             <button
               type="button"
               onClick={deleteSelected}
-              className="rounded-lg bg-red-600 px-3 py-1 text-sm text-white hover:bg-red-700"
+              className="rounded-lg bg-red-600 px-3 py-2 text-xs font-medium text-white hover:bg-red-700 sm:py-1.5 sm:text-sm"
             >
               Excluir selecionados
             </button>
@@ -632,18 +632,25 @@ export default function DescriptionCategoryTable() {
           <button
             type="button"
             onClick={openNew}
-            className="rounded-lg bg-blue-600 px-3 py-1 text-sm text-white hover:bg-blue-700"
+            className="rounded-lg bg-blue-600 px-3 py-2 text-xs font-medium text-white hover:bg-blue-700 sm:py-1.5 sm:text-sm"
           >
             + Novo
           </button>
         </div>
       </div>
 
-      <div className="max-h-[450px] overflow-y-auto">
-        <table className="w-full text-sm">
+      <div className="max-h-[450px] overflow-auto">
+        <table className="w-full min-w-[340px] table-fixed text-[11px] sm:min-w-[560px] sm:text-sm">
+          <colgroup>
+            <col className="w-[36px] sm:w-[44px]" />
+            <col className="w-[42%]" />
+            <col className="w-[35%]" />
+            <col className="w-[64px] sm:w-[86px]" />
+          </colgroup>
+
           <thead className="sticky top-0 z-10 bg-gray-50">
             <tr>
-              <th className="w-[40px] px-4 py-3 text-center">
+              <th className="px-2 py-2.5 text-center sm:px-4 sm:py-3">
                 <input
                   type="checkbox"
                   checked={allFilteredSelected}
@@ -651,7 +658,7 @@ export default function DescriptionCategoryTable() {
                 />
               </th>
 
-              <th className="px-4 py-3 text-left font-medium text-slate-700">
+              <th className="px-2 py-2.5 text-left font-medium text-slate-700 sm:px-4 sm:py-3">
                 <div className="flex items-center gap-2">
                   <span>Descrição</span>
 
@@ -685,7 +692,7 @@ export default function DescriptionCategoryTable() {
                 </div>
               </th>
 
-              <th className="px-4 py-3 text-left font-medium text-slate-700">
+              <th className="px-2 py-2.5 text-left font-medium text-slate-700 sm:px-4 sm:py-3">
                 <div className="flex items-center gap-2">
                   <span>Categoria</span>
 
@@ -719,7 +726,7 @@ export default function DescriptionCategoryTable() {
                 </div>
               </th>
 
-              <th className="px-4 py-3 text-right font-medium text-slate-700">
+              <th className="px-2 py-2.5 text-right font-medium text-slate-700 sm:px-4 sm:py-3">
                 Ações
               </th>
             </tr>
@@ -731,7 +738,7 @@ export default function DescriptionCategoryTable() {
                 key={item.id}
                 className="border-t hover:bg-gray-50"
               >
-                <td className="px-4 py-3 text-center">
+                <td className="px-2 py-2.5 text-center sm:px-4 sm:py-3">
                   <input
                     type="checkbox"
                     checked={selected.includes(
@@ -743,22 +750,22 @@ export default function DescriptionCategoryTable() {
                   />
                 </td>
 
-                <td className="px-4 py-3 font-medium text-slate-800">
+                <td className="break-words px-2 py-2.5 font-medium leading-snug text-slate-800 sm:px-4 sm:py-3">
                   {item.description}
                 </td>
 
-                <td className="px-4 py-3 text-slate-700">
+                <td className="break-words px-2 py-2.5 leading-snug text-slate-700 sm:px-4 sm:py-3">
                   {item.category}
                 </td>
 
-                <td className="px-4 py-3 text-right">
-                  <div className="flex justify-end gap-2">
+                <td className="px-2 py-2.5 text-right sm:px-4 sm:py-3">
+                  <div className="flex justify-end gap-1 sm:gap-2">
                     <button
                       type="button"
                       onClick={() =>
                         openEdit(item)
                       }
-                      className="rounded-md p-1.5 text-blue-600 transition hover:bg-blue-100"
+                      className="flex h-8 w-8 items-center justify-center rounded-md text-blue-600 transition hover:bg-blue-100"
                       title="Editar"
                     >
                       <Pencil size={16} />
@@ -775,7 +782,7 @@ export default function DescriptionCategoryTable() {
                           .eq("id", item.id)
                           .then(loadData)
                       }
-                      className="rounded-md p-1.5 text-red-600 transition hover:bg-red-100"
+                      className="flex h-8 w-8 items-center justify-center rounded-md text-red-600 transition hover:bg-red-100"
                       title="Excluir"
                     >
                       <Trash2 size={16} />
@@ -796,7 +803,7 @@ export default function DescriptionCategoryTable() {
           onClick={() => setModalOpen(false)}
         >
           <div
-            className="w-full max-w-[400px] space-y-4 rounded-xl bg-white p-6"
+            className="max-h-[calc(100dvh-24px)] w-full max-w-[400px] space-y-4 overflow-y-auto rounded-2xl bg-white p-4 shadow-xl sm:p-6"
             onClick={(event) =>
               event.stopPropagation()
             }
@@ -825,13 +832,13 @@ export default function DescriptionCategoryTable() {
               className="w-full rounded-lg border border-gray-300 p-2.5 text-slate-900 placeholder:text-slate-400"
             />
 
-            <div className="flex justify-end gap-3">
+            <div className="grid grid-cols-2 gap-2 sm:flex sm:justify-end sm:gap-3">
               <button
                 type="button"
                 onClick={() =>
                   setModalOpen(false)
                 }
-                className="text-gray-500"
+                className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-gray-500 transition hover:bg-slate-50"
               >
                 Cancelar
               </button>
@@ -839,7 +846,7 @@ export default function DescriptionCategoryTable() {
               <button
                 type="button"
                 onClick={save}
-                className="rounded-lg bg-blue-600 px-3 py-1 text-white"
+                className="rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700"
               >
                 Salvar
               </button>

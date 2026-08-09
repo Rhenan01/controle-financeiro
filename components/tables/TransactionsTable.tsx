@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useMemo, useEffect, Fragment } from "react"
+import { createPortal } from "react-dom"
 import { useFinanceStore } from "../../store/financeStore"
 import { 
   Pencil, 
@@ -47,7 +48,11 @@ type Props = {
 export default function TransactionsTable({ transactions }: Props) {
 
   const deleteTransaction = useFinanceStore((s) => s.deleteTransaction)
-
+  const [filterPosition, setFilterPosition] = useState<{
+    top: number
+    left: number
+    width: number
+  } | null>(null)
   const [selected,setSelected] = useState<string[]>([])
   const [sortDirection,setSortDirection] = useState<"asc" | "desc">("asc")
   const [collapsedDays,setCollapsedDays] = useState<Record<string,boolean>>({})
@@ -180,8 +185,17 @@ export default function TransactionsTable({ transactions }: Props) {
       if(filters.status.length && !filters.status.includes(t.status)) return false
       if(filters.payment.length && !filters.payment.includes(t.payment)) return false
 
-      const card = t.card ?? "(vazio)"
-      if(filters.card.length && !filters.card.includes(card)) return false
+      const card =
+        t.card?.trim()
+          ? t.card.trim()
+          : "(vazio)"
+
+      if (
+        filters.card.length &&
+        !filters.card.includes(card)
+      ) {
+        return false
+      }
 
       const inst = t.installment ?? "(vazio)"
       if(filters.installment.length && !filters.installment.includes(inst)) return false
@@ -238,18 +252,54 @@ useEffect(() => {
 
   },[])
 
-  useEffect(()=>{
+  useEffect(() => {
 
-    function close(){
+    function close() {
+
       setOpenFilter(null)
       setSearch("")
+      setFilterPosition(null)
+
     }
 
-    window.addEventListener("click",close)
 
-    return ()=>window.removeEventListener("click",close)
+    function closeOnScroll() {
 
-  },[])
+      if (openFilter) {
+        close()
+      }
+
+    }
+
+
+    window.addEventListener(
+      "click",
+      close
+    )
+
+    window.addEventListener(
+      "scroll",
+      closeOnScroll,
+      true
+    )
+
+
+    return () => {
+
+      window.removeEventListener(
+        "click",
+        close
+      )
+
+      window.removeEventListener(
+        "scroll",
+        closeOnScroll,
+        true
+      )
+
+    }
+
+  }, [openFilter])
 
   function toggleDay(date:string){
 
@@ -579,8 +629,18 @@ async function updateSelectedDate() {
     if (key !== "status" && filters.status.length && !filters.status.includes(t.status)) return false
     if (key !== "payment" && filters.payment.length && !filters.payment.includes(t.payment)) return false
 
-    const card = t.card ?? "(vazio)"
-    if (key !== "card" && filters.card.length && !filters.card.includes(card)) return false
+    const card =
+      t.card?.trim()
+        ? t.card.trim()
+        : "(vazio)"
+
+    if (
+      key !== "card" &&
+      filters.card.length &&
+      !filters.card.includes(card)
+    ) {
+      return false
+    }
 
     const inst = t.installment ?? "(vazio)"
     if (key !== "installment" && filters.installment.length && !filters.installment.includes(inst)) return false
@@ -592,7 +652,11 @@ async function updateSelectedDate() {
   })
 
   const values = dataRespectingOtherFilters.map((t) => {
-    if (key === "card") return t.card ?? "(vazio)"
+    if (key === "card") {
+      return t.card?.trim()
+        ? t.card.trim()
+        : "(vazio)"
+    }
     if (key === "installment") return t.installment ?? "(vazio)"
     if (key === "value") return t.value.toString()
 
@@ -634,50 +698,193 @@ return unique.sort((a, b) => {
 
   }
 
-  function FilterDropdown({column}:{column:keyof Filters}){
+  function FilterDropdown({
+    column
+  }: {
+    column: keyof Filters
+  }) {
 
-  const values = uniqueValues(column)
+    const values = uniqueValues(column)
 
-    return(
+    if (!filterPosition || !mounted) {
+      return null
+    }
+
+    return createPortal(
 
       <div
-      onClick={(e)=>e.stopPropagation()}
-      className="absolute z-20 bg-white border rounded shadow-lg p-2 text-xs w-56 max-h-64 overflow-auto">
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          position: "fixed",
+          top: filterPosition.top,
+          left: filterPosition.left,
+          width: filterPosition.width
+        }}
+        className="
+          z-[100]
+          overflow-hidden
+          rounded-xl
+          border
+          border-slate-200
+          bg-white
+          shadow-2xl
+        "
+      >
 
-        {column==="description" && (
+        {/* Busca */}
+        {column === "description" && (
 
-          <input
-            autoFocus
-            className="w-full border p-1 mb-2 text-xs"
-            placeholder="Buscar..."
-            value={search}
-            onChange={(e)=>setSearch(e.target.value)}
-          />
+          <div className="border-b border-slate-100 p-2">
+
+            <input
+              autoFocus
+              className="
+                w-full
+                rounded-lg
+                border
+                border-slate-200
+                bg-slate-50
+                px-3
+                py-2
+                text-xs
+                text-slate-700
+                outline-none
+                transition
+
+                placeholder:text-slate-400
+
+                focus:border-blue-400
+                focus:bg-white
+                focus:ring-2
+                focus:ring-blue-100
+              "
+              placeholder="Buscar..."
+              value={search}
+              onChange={(e) =>
+                setSearch(e.target.value)
+              }
+            />
+
+          </div>
 
         )}
 
-        {values
-        .filter(v=>{
-          if(column!=="description") return true
-          return v.toLowerCase().includes(search.toLowerCase())
-        })
-        .map(v=>(
 
-          <label key={v} className="flex gap-2">
+        {/* Opções */}
+        <div
+          className="
+            max-h-[300px]
+            overflow-y-auto
+            overscroll-contain
+            p-2
+          "
+        >
 
-            <input
-              type="checkbox"
-              checked={filters[column].includes(v)}
-              onChange={()=>toggleFilter(column,v)}
-            />
+          {values
 
-            {v}
+            .filter((v) => {
 
-          </label>
+              if (column !== "description") {
+                return true
+              }
 
-        ))}
+              return v
+                .toLowerCase()
+                .includes(
+                  search.toLowerCase()
+                )
 
-      </div>
+            })
+
+            .map((v) => (
+
+              <label
+                key={v}
+                className="
+                  flex
+                  cursor-pointer
+                  items-start
+                  gap-2
+                  rounded-lg
+                  px-2
+                  py-1.5
+                  text-xs
+                  text-slate-700
+                  transition
+
+                  hover:bg-slate-50
+                "
+              >
+
+                <input
+                  type="checkbox"
+                  checked={
+                    filters[column].includes(v)
+                  }
+                  onChange={() =>
+                    toggleFilter(
+                      column,
+                      v
+                    )
+                  }
+                  className="
+                    mt-[1px]
+                    h-3.5
+                    w-3.5
+                    shrink-0
+                    cursor-pointer
+                    accent-blue-600
+                  "
+                />
+
+                <span
+                  className="
+                    min-w-0
+                    break-words
+                    leading-snug
+                  "
+                >
+                  {v}
+                </span>
+
+              </label>
+
+            ))}
+
+
+          {values.filter((v) => {
+
+            if (column !== "description") {
+              return true
+            }
+
+            return v
+              .toLowerCase()
+              .includes(
+                search.toLowerCase()
+              )
+
+          }).length === 0 && (
+
+            <div
+              className="
+                px-3
+                py-6
+                text-center
+                text-xs
+                text-slate-400
+              "
+            >
+              Nenhum resultado encontrado.
+            </div>
+
+          )}
+
+        </div>
+
+      </div>,
+
+      document.body
 
     )
 
@@ -1108,7 +1315,42 @@ return unique.sort((a, b) => {
   })}
 </div>
     <div className="hidden overflow-x-auto lg:block">
-      <table className="w-full min-w-[780px] table-fixed text-[11px] xl:min-w-[1050px] xl:text-sm">
+      <table className="w-full min-w-[900px] table-fixed text-[11px] xl:min-w-[1050px] xl:text-sm">
+
+        <colgroup>
+          {/* Seleção */}
+          <col className="w-[3.5%]" />
+
+          {/* Data */}
+          <col className="w-[7%]" />
+
+          {/* Tipo */}
+          <col className="w-[8%]" />
+
+          {/* Descrição */}
+          <col className="w-[18%]" />
+
+          {/* Valor */}
+          <col className="w-[9%]" />
+
+          {/* Status */}
+          <col className="w-[10%]" />
+
+          {/* Pagamento */}
+          <col className="w-[10%]" />
+
+          {/* Cartão */}
+          <col className="w-[9%]" />
+
+          {/* Parcela */}
+          <col className="w-[7%]" />
+
+          {/* Saldo */}
+          <col className="w-[11%]" />
+
+          {/* Ações */}
+          <col className="w-[7.5%]" />
+        </colgroup>
 
         <thead className="bg-slate-50 text-slate-700 border-b">
 
@@ -1156,18 +1398,87 @@ return unique.sort((a, b) => {
                   {label}
 
                   <button
-                    onClick={(e)=>{
+                    onClick={(e) => {
+
                       e.stopPropagation()
 
-                      if(openFilter===key){
+                      if (openFilter === key) {
+
                         setOpenFilter(null)
                         setSearch("")
-                      }else{
-                        setOpenFilter(key)
+                        setFilterPosition(null)
+
+                        return
+
                       }
 
+                      const button =
+                        e.currentTarget
+
+                      const rect =
+                        button.getBoundingClientRect()
+
+
+                      const dropdownWidth =
+                        key === "description"
+                          ? 240
+                          : 220
+
+
+                      /*
+                      * Calcula a posição horizontal.
+                      * Impede o filtro de ultrapassar
+                      * a borda direita da tela.
+                      */
+                      let left =
+                        rect.left +
+                        rect.width / 2 -
+                        dropdownWidth / 2
+
+
+                      const margin = 12
+
+
+                      if (
+                        left + dropdownWidth >
+                        window.innerWidth - margin
+                      ) {
+
+                        left =
+                          window.innerWidth -
+                          dropdownWidth -
+                          margin
+
+                      }
+
+
+                      if (left < margin) {
+                        left = margin
+                      }
+
+
+                      setFilterPosition({
+                        top:
+                          rect.bottom + 6,
+
+                        left,
+
+                        width:
+                          dropdownWidth
+                      })
+
+
+                      setOpenFilter(key)
+
                     }}
-                    className="text-slate-400 hover:text-slate-600"
+                    className="
+                      rounded
+                      px-1
+                      text-slate-400
+                      transition
+                      hover:bg-slate-100
+                      hover:text-slate-600
+                    "
                   >
                     ▾
                   </button>
@@ -1267,13 +1578,16 @@ return unique.sort((a, b) => {
                       {t.type}
                     </td>
 
-                    <td className="p-3 text-center">
-                      <span title={relatedInfoMap[t.id] || ""}>
+                    <td className="min-w-0 px-4 py-3 text-center align-middle">
+                      <span
+                        title={relatedInfoMap[t.id] || t.description}
+                        className="block max-w-full break-words font-medium leading-snug text-slate-800"
+                      >
                         {t.description}
                       </span>
                     </td>
 
-                    <td className="p-3 text-center">
+                    <td className="whitespace-nowrap px-4 py-3 text-right align-middle font-medium tabular-nums text-slate-700">
                       {money(t.value)}
                     </td>
 
@@ -1318,7 +1632,7 @@ return unique.sort((a, b) => {
                       {t.installment ?? "-"}
                     </td>
 
-                    <td className="p-3 text-center font-semibold">
+                    <td className="whitespace-nowrap px-4 py-3 text-right align-middle font-semibold tabular-nums text-slate-800">
                       {money(balanceMap[t.id])}
                     </td>
 

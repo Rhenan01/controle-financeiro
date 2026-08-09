@@ -5,243 +5,669 @@ import { supabase } from "@/lib/supabase"
 import { useFinanceStore } from "@/store/financeStore"
 
 type Card = {
-  id:string
-  name:string
-  closing_day:number
-  due_day:number
-  limit_value:number
-  color:string
+  id: string
+  name: string
+  closing_day: number
+  due_day: number
+  limit_value: number
+  color: string
 }
 
 type Props = {
-  financialRange:{
-    start:string
-    end:string
-    label:string
+  financialRange: {
+    start: string
+    end: string
+    label: string
   }
 }
 
+type CardStatus =
+  | "PAGO"
+  | "ABERTA"
+  | "ATRASADA"
 
 
-export default function CreditCardsStatus({financialRange}:Props){
+export default function CreditCardsStatus({
+  financialRange
+}: Props) {
 
-  const transactions = useFinanceStore(s=>s.transactions)
+  const transactions = useFinanceStore(
+    (s) => s.transactions
+  )
 
-  const [cards,setCards] = useState<Card[]>([])
-  const [paidMap,setPaidMap] = useState<Record<string,boolean>>({})
+  const [cards, setCards] = useState<Card[]>([])
 
-  useEffect(()=>{
+  const [paidMap, setPaidMap] = useState<
+    Record<string, boolean>
+  >({})
 
-    async function loadCards(){
 
-      const {data} = await supabase
+  /*
+   * Retorna o ID do usuário atualmente autenticado.
+   */
+  async function getCurrentUserId() {
+
+    try {
+
+      const {
+        data,
+        error
+      } = await supabase.auth.getSession()
+
+      if (error) {
+        return null
+      }
+
+      return data.session?.user?.id ?? null
+
+    } catch {
+
+      return null
+
+    }
+
+  }
+
+
+  /*
+   * Carrega os cartões cadastrados.
+   */
+  useEffect(() => {
+
+    async function loadCards() {
+
+      const {
+        data,
+        error
+      } = await supabase
         .from("cards")
         .select("*")
         .order("name")
 
-      if(data) setCards(data)
+
+      if (!error && data) {
+
+        setCards(data)
+
+      }
 
     }
 
+
     loadCards()
 
-  },[])
+  }, [])
 
-  // carregar estado pago
 
-  useEffect(()=>{
+  /*
+   * Carrega o status manual de pagamento
+   * das faturas do período selecionado.
+   */
+  useEffect(() => {
 
-    async function loadInvoices(){
+    async function loadInvoices() {
 
-      const {data:userData} = await supabase.auth.getUser()
-      const user = userData.user
+      const userId =
+        await getCurrentUserId()
 
-      if(!user) return
 
-      const {data} = await supabase
+      if (!userId) {
+        return
+      }
+
+
+      const {
+        data,
+        error
+      } = await supabase
         .from("card_invoices")
         .select("*")
-        .eq("month_label",financialRange.label)
-        .eq("user_id",user.id)
+        .eq(
+          "month_label",
+          financialRange.label
+        )
+        .eq(
+          "user_id",
+          userId
+        )
 
-      const map:Record<string,boolean> = {}
 
-      data?.forEach(i=>{
-        map[i.card_id] = i.paid
+      if (error) {
+        return
+      }
+
+
+      const map: Record<string, boolean> = {}
+
+
+      data?.forEach((invoice) => {
+
+        map[invoice.card_id] =
+          invoice.paid
+
       })
+
 
       setPaidMap(map)
 
     }
 
+
     loadInvoices()
 
-  },[financialRange])
+  }, [financialRange.label])
 
-  async function togglePaid(cardId:string){
 
-    const {data:userData} = await supabase.auth.getUser()
-    const user = userData.user
+  /*
+   * Alterna manualmente o estado pago/não pago
+   * de uma fatura.
+   */
+  async function togglePaid(
+    cardId: string
+  ) {
 
-    if(!user) return
+    const userId =
+      await getCurrentUserId()
 
-    const current = paidMap[cardId] ?? false
-    const next = !current
 
-    setPaidMap(prev=>({...prev,[cardId]:next}))
+    if (!userId) {
+      return
+    }
 
-    const {data:existing} = await supabase
+
+    const current =
+      paidMap[cardId] ?? false
+
+    const next =
+      !current
+
+
+    /*
+     * Atualização otimista:
+     * altera primeiro a interface e depois salva.
+     */
+    setPaidMap((prev) => ({
+      ...prev,
+      [cardId]: next
+    }))
+
+
+    const {
+      data: existing,
+      error: existingError
+    } = await supabase
       .from("card_invoices")
       .select("id")
-      .eq("card_id",cardId)
-      .eq("month_label",financialRange.label)
-      .single()
+      .eq(
+        "card_id",
+        cardId
+      )
+      .eq(
+        "month_label",
+        financialRange.label
+      )
+      .eq(
+        "user_id",
+        userId
+      )
+      .maybeSingle()
 
-    if(existing){
 
-      await supabase
+    if (existingError) {
+
+      setPaidMap((prev) => ({
+        ...prev,
+        [cardId]: current
+      }))
+
+      return
+
+    }
+
+
+    let saveError = null
+
+
+    if (existing) {
+
+      const {
+        error
+      } = await supabase
         .from("card_invoices")
-        .update({paid:next})
-        .eq("id",existing.id)
+        .update({
+          paid: next
+        })
+        .eq(
+          "id",
+          existing.id
+        )
 
-    }else{
 
-      await supabase
+      saveError = error
+
+    } else {
+
+      const {
+        error
+      } = await supabase
         .from("card_invoices")
         .insert({
-          user_id:user.id,
-          card_id:cardId,
-          month_label:financialRange.label,
-          start_date:financialRange.start,
-          end_date:financialRange.end,
-          paid:next
+          user_id: userId,
+          card_id: cardId,
+          month_label:
+            financialRange.label,
+          start_date:
+            financialRange.start,
+          end_date:
+            financialRange.end,
+          paid: next
         })
+
+
+      saveError = error
+
+    }
+
+
+    /*
+     * Se não conseguir salvar no banco,
+     * retorna visualmente ao estado anterior.
+     */
+    if (saveError) {
+
+      setPaidMap((prev) => ({
+        ...prev,
+        [cardId]: current
+      }))
 
     }
 
   }
-  function getCardDueDateInRange(rangeStart: string, rangeEnd: string, dueDay: number) {
-    const [year, month] = rangeEnd.split("-").map(Number)
 
-    const lastDayOfMonth = new Date(year, month, 0).getDate()
-    const safeDueDay = Math.min(dueDay, lastDayOfMonth)
+
+  /*
+   * Calcula a data de vencimento do cartão
+   * dentro do período financeiro selecionado.
+   *
+   * Exemplo:
+   * período 30/07 até 27/08
+   * cartão vence dia 5
+   * vencimento = 05/08
+   */
+  function getCardDueDateInRange(
+    rangeEnd: string,
+    dueDay: number
+  ) {
+
+    const [
+      year,
+      month
+    ] = rangeEnd
+      .split("-")
+      .map(Number)
+
+
+    const lastDayOfMonth =
+      new Date(
+        year,
+        month,
+        0
+      ).getDate()
+
+
+    /*
+     * Evita datas inválidas.
+     * Exemplo: vencimento 31 em fevereiro.
+     */
+    const safeDueDay =
+      Math.min(
+        dueDay,
+        lastDayOfMonth
+      )
+
 
     return `${year}-${String(month).padStart(2, "0")}-${String(safeDueDay).padStart(2, "0")}`
+
   }
-  const cardsWithInvoice = useMemo(()=>{
 
-    const today = new Date().toISOString().slice(0,10)
 
-    const isFuture = financialRange.start > today
-    const isPast = financialRange.end < today
+  /*
+   * Formatação monetária.
+   */
+  function money(
+    value: number
+  ) {
 
-    const list = cards.map(card=>{
+    return value.toLocaleString(
+      "pt-BR",
+      {
+        style: "currency",
+        currency: "BRL",
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+      }
+    )
 
-      const cardRangeEnd = getCardDueDateInRange(
-        financialRange.start,
-        financialRange.end,
-        card.due_day
-      )
-      const invoice = transactions
-        .filter(t=>{
+  }
 
-          const sameCard =
-            t.card?.toLowerCase().trim() === card.name.toLowerCase().trim()
 
-          const credit =
-            t.payment?.toLowerCase().includes("cr")
+  /*
+   * Ajusta discretamente a fonte apenas
+   * para valores excepcionalmente grandes.
+   */
+  function getInvoiceTextClass(
+    value: number
+  ) {
 
-          const inRange =
-            t.date >= financialRange.start &&
-            t.date <= cardRangeEnd
+    const absolute =
+      Math.abs(value)
 
-          return sameCard && credit && inRange
 
-        })
-        .reduce((sum,t)=>sum+t.value,0)
+    if (absolute >= 100000) {
+      return "text-[14px]"
+    }
 
-      const paid = paidMap[card.id] ?? false
 
-      let status:"PAGO"|"ATRASADA"|"ABERTA" = "ABERTA"
+    if (absolute >= 10000) {
+      return "text-[15px]"
+    }
 
-      if(paid){
 
-        status = "PAGO"
+    return "text-[17px]"
 
-      }else{
+  }
 
-        if(isPast){
 
-          status = "ATRASADA"
+  /*
+   * Aparência de cada status.
+   */
+  function getStatusStyle(
+    status: CardStatus
+  ) {
 
-        }else if(!isFuture){
+    switch (status) {
 
-          const month = today.slice(0,7)
+      case "PAGO":
 
-          const dueDate =
-            `${month}-${String(card.due_day).padStart(2,"0")}`
-
-          if(today > dueDate){
-            status = "ATRASADA"
-          }
-
+        return {
+          label: "Pago",
+          className:
+            "bg-emerald-100 text-emerald-700 border-emerald-200"
         }
 
-      }
 
-      return{
-        ...card,
-        invoice,
-        status
-      }
+      case "ABERTA":
 
-    })
+        return {
+          label: "Em aberto",
+          className:
+            "bg-amber-100 text-amber-700 border-amber-200"
+        }
 
-    return list.sort((a,b)=>{
 
-      const order = {
-        "ATRASADA":0,
-        "ABERTA":1,
-        "PAGO":2
-      }
+      case "ATRASADA":
 
-      if(order[a.status] !== order[b.status]){
-        return order[a.status] - order[b.status]
-      }
+        return {
+          label: "Em atraso",
+          className:
+            "bg-rose-100 text-rose-700 border-rose-200"
+        }
 
-      return b.invoice - a.invoice
-
-    })
-
-  },[cards,transactions,financialRange,paidMap])
-
-  function money(v:number){
-
-    return v.toLocaleString("pt-BR",{
-      style:"currency",
-      currency:"BRL"
-    })
+    }
 
   }
-  if(cards.length === 0){
 
-    return(
 
-      <div className="bg-white/80 backdrop-blur-sm p-8 rounded-2xl shadow-lg border border-gray-200 flex flex-col items-center justify-center text-center">
+  /*
+   * Calcula a fatura e o status de cada cartão.
+   */
+  const cardsWithInvoice =
+    useMemo(() => {
 
-        <div className="w-14 h-14 rounded-xl bg-blue-50 flex items-center justify-center mb-4">
+      const today =
+        new Date()
+          .toISOString()
+          .slice(0, 10)
 
-          <span className="text-2xl">💳</span>
 
+      const list =
+        cards.map((card) => {
+
+          /*
+           * Data real de vencimento da fatura
+           * dentro do período selecionado.
+           */
+          const cardDueDate =
+            getCardDueDateInRange(
+              financialRange.end,
+              card.due_day
+            )
+
+
+          /*
+           * Soma somente lançamentos:
+           *
+           * - do cartão atual;
+           * - realizados no crédito;
+           * - pertencentes ao período da fatura.
+           */
+          const invoice =
+            transactions
+
+              .filter(
+                (transaction) => {
+
+                  const sameCard =
+                    transaction.card
+                      ?.toLowerCase()
+                      .trim() ===
+                    card.name
+                      .toLowerCase()
+                      .trim()
+
+
+                  const credit =
+                    transaction.payment
+                      ?.toLowerCase()
+                      .includes("cr")
+
+
+                  const inRange =
+                    transaction.date >=
+                      financialRange.start &&
+                    transaction.date <=
+                      cardDueDate
+
+
+                  return (
+                    sameCard &&
+                    credit &&
+                    inRange
+                  )
+
+                }
+              )
+
+              .reduce(
+                (
+                  sum,
+                  transaction
+                ) =>
+                  sum +
+                  transaction.value,
+                0
+              )
+
+
+          const paid =
+            paidMap[card.id] ?? false
+
+
+          let status: CardStatus =
+            "ABERTA"
+
+
+          /*
+           * Ordem de prioridade:
+           *
+           * 1. Se foi marcado manualmente como pago:
+           *    Pago.
+           *
+           * 2. Se não foi pago e o vencimento passou:
+           *    Em atraso.
+           *
+           * 3. Caso contrário:
+           *    Em aberto.
+           *
+           * A regra vale mesmo quando a fatura é R$ 0,00.
+           */
+          if (paid) {
+
+            status =
+              "PAGO"
+
+          } else if (
+            today > cardDueDate
+          ) {
+
+            status =
+              "ATRASADA"
+
+          } else {
+
+            status =
+              "ABERTA"
+
+          }
+
+
+          return {
+            ...card,
+            invoice,
+            status
+          }
+
+        })
+
+
+      /*
+       * Ordenação:
+       *
+       * 1. Em atraso
+       * 2. Em aberto
+       * 3. Pago
+       *
+       * Dentro do mesmo status,
+       * maior fatura aparece primeiro.
+       */
+      return list.sort(
+        (a, b) => {
+
+          const order:
+            Record<
+              CardStatus,
+              number
+            > = {
+
+            ATRASADA: 0,
+            ABERTA: 1,
+            PAGO: 2
+
+          }
+
+
+          if (
+            order[a.status] !==
+            order[b.status]
+          ) {
+
+            return (
+              order[a.status] -
+              order[b.status]
+            )
+
+          }
+
+
+          return (
+            b.invoice -
+            a.invoice
+          )
+
+        }
+      )
+
+    }, [
+      cards,
+      transactions,
+      financialRange,
+      paidMap
+    ])
+
+
+  /*
+   * Estado vazio.
+   */
+  if (cards.length === 0) {
+
+    return (
+
+      <div
+        className="
+          h-full
+          min-h-[410px]
+          rounded-2xl
+          border
+          border-slate-200
+          bg-white/90
+          p-6
+          shadow-sm
+          backdrop-blur-sm
+
+          flex
+          flex-col
+          items-center
+          justify-center
+          text-center
+        "
+      >
+
+        <div
+          className="
+            mb-3
+            flex
+            h-12
+            w-12
+            items-center
+            justify-center
+            rounded-2xl
+            bg-slate-100
+            text-xl
+          "
+        >
+          💳
         </div>
 
-        <h3 className="text-lg font-semibold text-slate-800 mb-1">
+
+        <h3
+          className="
+            font-semibold
+            text-slate-800
+          "
+        >
           Nenhum cartão cadastrado
         </h3>
 
-        <p className="text-sm text-slate-500 max-w-sm">
-          Cadastre um cartão de crédito para acompanhar suas faturas
-          automaticamente aqui no dashboard.
+
+        <p
+          className="
+            mt-1
+            max-w-xs
+            text-sm
+            text-slate-500
+          "
+        >
+          Cadastre um cartão para acompanhar suas faturas.
         </p>
 
       </div>
@@ -249,84 +675,391 @@ export default function CreditCardsStatus({financialRange}:Props){
     )
 
   }
-  return(
 
-    <div className="bg-white/80 backdrop-blur-sm p-6 rounded-2xl shadow-lg border border-gray-200">
 
-      <h2 className="text-lg font-semibold text-slate-800 mb-4">
-        Status das Faturas
-      </h2>
+  return (
 
-      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3">
+    <div
+      className="
+        h-full
+        min-w-0
+        rounded-2xl
+        border
+        border-slate-200
+        bg-white/90
+        p-4
+        shadow-sm
+        backdrop-blur-sm
+      "
+    >
 
-        {cardsWithInvoice.map(card=>{
+      {/* Cabeçalho */}
+      <div
+        className="
+          mb-3
+          flex
+          items-center
+          justify-between
+          gap-3
+        "
+      >
 
-          const paid = paidMap[card.id] ?? false
+        <h2
+          className="
+            text-lg
+            font-semibold
+            text-slate-800
+          "
+        >
+          Status das Faturas
+        </h2>
 
-          return(
 
-            <div
-              key={card.id}
-              className="p-4 min-h-[130px] rounded-lg border border-gray-200 bg-white hover:shadow-md transition flex flex-col justify-between"
-            >
+        <span
+          className="
+            flex-shrink-0
+            rounded-full
+            bg-slate-100
+            px-2.5
+            py-1
+            text-[11px]
+            font-medium
+            text-slate-500
+          "
+        >
+          {cards.length} cartões
+        </span>
 
-              <div className="flex items-center justify-between">
+      </div>
 
-                <h3
-                  className="text-sm font-semibold truncate pr-2"
-                  style={{color: card.color}}
-                >
-                  {card.name}
-                </h3>
 
-                <input
-                  type="checkbox"
-                  checked={paid}
-                  onChange={()=>togglePaid(card.id)}
-                  className="w-4 h-4 flex-shrink-0 accent-emerald-600 cursor-pointer"
+      {/* Grid dos cartões */}
+      <div
+        className="
+          grid
+          grid-cols-2
+          gap-2
+
+          sm:grid-cols-3
+          xl:grid-cols-3
+        "
+      >
+
+        {cardsWithInvoice.map(
+          (card) => {
+
+            const paid =
+              paidMap[card.id] ?? false
+
+
+            const status =
+              getStatusStyle(
+                card.status
+              )
+
+
+            const cardColor =
+              card.color ||
+              "#2563eb"
+
+
+            return (
+
+              <div
+                key={card.id}
+                className="
+                  group
+                  relative
+                  min-w-0
+                  min-h-[108px]
+                  overflow-hidden
+                  rounded-xl
+                  border
+                  border-slate-200
+                  bg-white
+                  p-2.5
+
+                  transition-all
+                  duration-200
+
+                  hover:-translate-y-[1px]
+                  hover:border-slate-300
+                  hover:shadow-md
+                "
+              >
+
+                {/* Faixa superior com a cor do cartão */}
+                <div
+                  className="
+                    absolute
+                    left-0
+                    right-0
+                    top-0
+                    h-[3px]
+                  "
+                  style={{
+                    backgroundColor:
+                      cardColor
+                  }}
                 />
 
+
+                <div
+                  className="
+                    flex
+                    h-full
+                    flex-col
+                  "
+                >
+
+                  {/* Nome + botão de pagamento */}
+                  <div
+                    className="
+                      flex
+                      items-start
+                      justify-between
+                      gap-2
+                    "
+                  >
+
+                    <div
+                      className="
+                        min-w-0
+                        pr-1
+                      "
+                    >
+
+                      <h3
+                        title={card.name}
+                        className="
+                          truncate
+                          text-[12px]
+                          font-semibold
+                          leading-tight
+                          text-slate-800
+                        "
+                      >
+                        {card.name}
+                      </h3>
+
+
+                      <p
+                        className="
+                          mt-0.5
+                          text-[10px]
+                          leading-tight
+                          text-slate-400
+                        "
+                      >
+                        Vence dia {card.due_day}
+                      </p>
+
+                    </div>
+
+
+                    {/* Toggle pago */}
+                    <button
+                      type="button"
+                      aria-pressed={paid}
+                      aria-label={
+                        paid
+                          ? `Marcar fatura ${card.name} como não paga`
+                          : `Marcar fatura ${card.name} como paga`
+                      }
+                      title={
+                        paid
+                          ? "Marcar como não paga"
+                          : "Marcar como paga"
+                      }
+                      onClick={() =>
+                        togglePaid(
+                          card.id
+                        )
+                      }
+                      className={`
+                        relative
+                        mt-0.5
+                        h-[18px]
+                        w-8
+                        flex-shrink-0
+                        rounded-full
+                        transition-colors
+                        duration-200
+
+                        ${
+                          paid
+                            ? "bg-emerald-500"
+                            : "bg-slate-200"
+                        }
+                      `}
+                    >
+
+                      <span
+                        className={`
+                          absolute
+                          top-[2px]
+                          h-[14px]
+                          w-[14px]
+                          rounded-full
+                          bg-white
+                          shadow-sm
+
+                          transition-all
+                          duration-200
+
+                          ${
+                            paid
+                              ? "left-[16px]"
+                              : "left-[2px]"
+                          }
+                        `}
+                      />
+
+                    </button>
+
+                  </div>
+
+
+                  {/* Valor da fatura */}
+                  <div
+                    className="
+                      mt-2
+                      min-w-0
+                    "
+                  >
+
+                    <p
+                      className="
+                        text-[9px]
+                        leading-none
+                        text-slate-400
+                      "
+                    >
+                      Fatura
+                    </p>
+
+
+                    <p
+                      title={
+                        money(
+                          card.invoice
+                        )
+                      }
+                      className={`
+                        mt-1
+                        whitespace-nowrap
+                        font-bold
+                        leading-none
+                        tracking-[-0.025em]
+                        text-slate-800
+                        tabular-nums
+
+                        ${getInvoiceTextClass(
+                          card.invoice
+                        )}
+                      `}
+                    >
+                      {money(
+                        card.invoice
+                      )}
+                    </p>
+
+                  </div>
+
+
+                  {/* Limite + status */}
+                  <div
+                    className="
+                      mt-auto
+                      pt-2
+                    "
+                  >
+
+                    <div
+                      className="
+                        flex
+                        items-end
+                        justify-between
+                        gap-2
+                      "
+                    >
+
+                      {/* Limite */}
+                      <div
+                        className="
+                          min-w-0
+                          flex-1
+                        "
+                      >
+
+                        <p
+                          className="
+                            text-[8px]
+                            leading-none
+                            text-slate-400
+                          "
+                        >
+                          Limite
+                        </p>
+
+
+                        <p
+                          title={
+                            money(
+                              card.limit_value
+                            )
+                          }
+                          className="
+                            mt-1
+                            truncate
+                            whitespace-nowrap
+                            text-[10px]
+                            font-medium
+                            leading-none
+                            text-slate-600
+                            tabular-nums
+                          "
+                        >
+                          {money(
+                            card.limit_value
+                          )}
+                        </p>
+
+                      </div>
+
+
+                      {/* Status */}
+                      <span
+                        className={`
+                          flex-shrink-0
+                          whitespace-nowrap
+                          rounded-full
+                          border
+                          px-2.5
+                          py-1
+                          text-[9px]
+                          font-semibold
+                          leading-none
+                          shadow-sm
+
+                          ${status.className}
+                        `}
+                      >
+                        {status.label}
+                      </span>
+
+                    </div>
+
+                  </div>
+
+                </div>
+
               </div>
 
-              <div className="text-xs text-gray-500">
-                vence dia {card.due_day}
-              </div>
+            )
 
-              <div className="text-lg font-semibold text-slate-800">
-                {money(card.invoice)}
-              </div>
-
-              <div className="text-xs text-gray-400">
-                limite {money(card.limit_value)}
-              </div>
-
-              <div className="mt-2">
-
-                {card.status === "PAGO" && (
-                  <span className="text-[10px] bg-emerald-100 text-emerald-600 px-2 py-1 rounded-full">
-                    Pago
-                  </span>
-                )}
-
-                {card.status === "ABERTA" && (
-                  <span className="text-[10px] bg-amber-100 text-amber-600 px-2 py-1 rounded-full">
-                    Em aberto
-                  </span>
-                )}
-
-                {card.status === "ATRASADA" && (
-                  <span className="text-[10px] bg-red-100 text-red-600 px-2 py-1 rounded-full">
-                    Atrasada
-                  </span>
-                )}
-
-              </div>
-
-            </div>
-
-          )
-
-        })}
+          }
+        )}
 
       </div>
 
