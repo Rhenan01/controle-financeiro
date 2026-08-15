@@ -255,22 +255,29 @@ useEffect(() => {
   useEffect(() => {
 
     function close() {
-
       setOpenFilter(null)
       setSearch("")
       setFilterPosition(null)
-
     }
 
+    function closeOnScroll(event: Event) {
 
-    function closeOnScroll() {
+      const target = event.target
 
+      // Não fecha o filtro quando o scroll
+      // acontece dentro do próprio dropdown
+      if (target instanceof Element) {
+        if (target.closest("[data-filter-dropdown]")) {
+          return
+        }
+      }
+
+      // Fecha apenas quando a página ou
+      // outro container externo é rolado
       if (openFilter) {
         close()
       }
-
     }
-
 
     window.addEventListener(
       "click",
@@ -282,7 +289,6 @@ useEffect(() => {
       closeOnScroll,
       true
     )
-
 
     return () => {
 
@@ -713,6 +719,7 @@ return unique.sort((a, b) => {
     return createPortal(
 
       <div
+        data-filter-dropdown
         onClick={(e) => e.stopPropagation()}
         style={{
           position: "fixed",
