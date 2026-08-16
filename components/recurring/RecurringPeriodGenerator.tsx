@@ -148,8 +148,26 @@ function getTodayISO() {
 }
 
 function getPeriodMonthLabel(
+  periodStart: string,
   periodEnd: string
 ) {
+  const start = parseISODate(periodStart)
+  const end = parseISODate(periodEnd)
+
+  // Usa o ponto central do período para identificar
+  // a qual mês financeiro ele pertence.
+  //
+  // Exemplo:
+  // Casa: 01/07 até 02/08 -> Julho
+  // Rhenan: 30/07 até 29/08 -> Agosto
+
+  const middleTimestamp =
+    start.getTime() +
+    (end.getTime() - start.getTime()) / 2
+
+  const referenceDate =
+    new Date(middleTimestamp)
+
   const formatted =
     new Intl.DateTimeFormat(
       "pt-BR",
@@ -158,9 +176,7 @@ function getPeriodMonthLabel(
         year: "numeric",
         timeZone: "UTC"
       }
-    ).format(
-      parseISODate(periodEnd)
-    )
+    ).format(referenceDate)
 
   return (
     formatted.charAt(0).toUpperCase() +
@@ -206,7 +222,7 @@ function buildFinancialPeriods(
       start,
       end,
       label:
-        getPeriodMonthLabel(end)
+        getPeriodMonthLabel(start, end)
     })
   }
 
