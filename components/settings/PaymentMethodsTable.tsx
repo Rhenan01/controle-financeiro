@@ -91,6 +91,7 @@ export default function PaymentMethodsTable() {
           <span className="block truncate text-sm font-medium text-slate-700 sm:text-base">
             Formas de pagamento
           </span>
+
           <span className="mt-0.5 block text-xs text-slate-400">
             {methods.length} {methods.length === 1 ? "forma cadastrada" : "formas cadastradas"}
           </span>
@@ -151,7 +152,11 @@ export default function PaymentMethodsTable() {
           className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 p-3 sm:p-4"
           onClick={() => setModalOpen(false)}
         >
-          <div
+          <form
+            onSubmit={(event) => {
+              event.preventDefault()
+              void save()
+            }}
             className="w-full max-w-[360px] rounded-2xl bg-white p-4 shadow-2xl sm:p-6"
             onClick={(e) => e.stopPropagation()}
           >
@@ -187,14 +192,13 @@ export default function PaymentMethodsTable() {
               </button>
 
               <button
-                type="button"
-                onClick={save}
+                type="submit"
                 className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700"
               >
                 Salvar
               </button>
             </div>
-          </div>
+          </form>
         </div>
       )}
     </div>

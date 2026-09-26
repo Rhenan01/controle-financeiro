@@ -1,25 +1,25 @@
 "use client"
 
-import { useState, useEffect, useMemo } from "react"
+import { useEffect, useMemo, useState } from "react"
+
 import { supabase } from "@/lib/supabase"
 import { useFinanceStore } from "@/store/financeStore"
 
 import TransactionsTable from "../../../components/tables/TransactionsTable"
 import NewTransactionModal from "../../../components/modals/NewTransactionModal"
+import NewRecurringTransactionModal from "../../../components/modals/NewRecurringTransactionModal"
 
 export default function Lancamentos() {
-
   const [openModal, setOpenModal] = useState(false)
+  const [openRecurringModal, setOpenRecurringModal] = useState(false)
   const [monthFilter, setMonthFilter] = useState("current")
-  const [salaryDays,setSalaryDays] = useState<string[]>([])
+  const [salaryDays, setSalaryDays] = useState<string[]>([])
 
   const transactions = useFinanceStore((s) => s.transactions)
   const loadTransactions = useFinanceStore((s) => s.loadTransactions)
 
   useEffect(() => {
-
     async function init() {
-
       const { data: authData } = await supabase.auth.getUser()
       const user = authData.user
 
@@ -30,21 +30,18 @@ export default function Lancamentos() {
       const { data: salaryData } = await supabase
         .from("salary_days")
         .select("payment_date")
+        .eq("user_id", user.id)
         .order("payment_date")
 
       if (salaryData) {
-        setSalaryDays(salaryData.map(d => d.payment_date))
+        setSalaryDays(salaryData.map((d) => d.payment_date))
       }
-
     }
 
-    init()
-
+    void init()
   }, [loadTransactions])
 
-
   useEffect(() => {
-
     function handleEdit() {
       setOpenModal(true)
     }
@@ -54,113 +51,98 @@ export default function Lancamentos() {
     return () => {
       window.removeEventListener("openEditTransaction", handleEdit)
     }
-
   }, [])
-
 
   function clearFilters() {
     window.dispatchEvent(new Event("clearTableFilters"))
   }
 
+  function subtractOneDay(date: string) {
+    const [year, month, day] = date.split("-").map(Number)
+    const parsed = new Date(Date.UTC(year, month - 1, day))
 
-  function subtractOneDay(date:string){
+    parsed.setUTCDate(parsed.getUTCDate() - 1)
 
-    const d = new Date(date)
-    d.setDate(d.getDate()-1)
-
-    return d.toISOString().slice(0,10)
-
+    return parsed.toISOString().slice(0, 10)
   }
 
+  const financialMonths = useMemo(() => {
+    if (salaryDays.length < 2) return []
 
-  const financialMonths = useMemo(()=>{
+    const months: {
+      start: string
+      end: string
+      label: string
+    }[] = []
 
-    if(salaryDays.length < 2) return []
-
-    const months:any[] = []
-
-    for(let i=0;i<salaryDays.length-1;i++){
-
+    for (let i = 0; i < salaryDays.length - 1; i++) {
       const start = salaryDays[i]
-      const nextPayment = salaryDays[i+1]
-
+      const nextPayment = salaryDays[i + 1]
       const end = subtractOneDay(nextPayment)
 
-      const startDate = new Date(start)
-      const endDate = new Date(end)
+      const [startYear, startMonth, startDay] = start.split("-").map(Number)
+      const [endYear, endMonth, endDay] = end.split("-").map(Number)
 
-      // pega o meio do período
-      const middleTime = (startDate.getTime() + endDate.getTime()) / 2
+      const startDate = new Date(
+        Date.UTC(startYear, startMonth - 1, startDay)
+      )
+      const endDate = new Date(Date.UTC(endYear, endMonth - 1, endDay))
+
+      const middleTime =
+        (startDate.getTime() + endDate.getTime()) / 2
+
       const date = new Date(middleTime)
 
-      const label = date.toLocaleDateString("pt-BR",{
-        month:"short",
-        year:"numeric"
+      const label = date.toLocaleDateString("pt-BR", {
+        month: "short",
+        year: "numeric",
+        timeZone: "UTC"
       })
 
       months.push({
         start,
         end,
-        label: label.charAt(0).toUpperCase()+label.slice(1)
+        label: label.charAt(0).toUpperCase() + label.slice(1)
       })
-
     }
 
     return months
+  }, [salaryDays])
 
-  },[salaryDays])
-
-  
   const financialRange = useMemo(() => {
-
     if (monthFilter === "all") return null
 
     if (monthFilter === "current") {
+      const today = new Date()
+      const todayISO = `${today.getFullYear()}-${String(
+        today.getMonth() + 1
+      ).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`
 
-      const today = new Date().toISOString().slice(0,10)
-
-      const current = financialMonths.find(m =>
-        today >= m.start && today <= m.end
+      const current = financialMonths.find(
+        (m) => todayISO >= m.start && todayISO <= m.end
       )
 
       return current ?? financialMonths[0]
-
     }
 
-    const month = financialMonths.find(m => m.label === monthFilter)
+    const month = financialMonths.find(
+      (m) => m.label === monthFilter
+    )
 
     return month ?? null
-
-  }, [monthFilter,financialMonths])
-
+  }, [monthFilter, financialMonths])
 
   const filteredTransactions = useMemo(() => {
-
     if (!financialRange) return transactions
 
-    return transactions.filter((t) =>
-      t.date >= financialRange.start &&
-      t.date <= financialRange.end
+    return transactions.filter(
+      (t) =>
+        t.date >= financialRange.start &&
+        t.date <= financialRange.end
     )
-
   }, [transactions, financialRange])
 
-
-  const currentMonthStart = useMemo(() => {
-
-    const today = new Date().toISOString().slice(0,10)
-
-    const current = financialMonths.find(m =>
-      today >= m.start && today <= m.end
-    )
-
-    return current?.start ?? financialMonths[0]?.start
-
-  }, [financialMonths])
-
-
   const metrics = useMemo(() => {
-
     let entradas = 0
     let saidas = 0
 
@@ -171,69 +153,56 @@ export default function Lancamentos() {
     let saidasPrev = 0
 
     filteredTransactions.forEach((t) => {
-
       if (t.type === "ENTRADA") entradas += t.value
       if (t.type === "SAÍDA") saidas += t.value
 
       if (t.status === "PAGO") {
-
         if (t.type === "ENTRADA") entradasPagas += t.value
         if (t.type === "SAÍDA") saidasPagas += t.value
-
       }
 
       if (t.status === "PREVISTO") {
-
         if (t.type === "ENTRADA") entradasPrev += t.value
         if (t.type === "SAÍDA") saidasPrev += t.value
-
       }
-
     })
-
 
     let entradasLiquido = 0
     let saidasLiquido = 0
 
     if (monthFilter === "all") {
+      const today = new Date()
+      const todayISO = `${today.getFullYear()}-${String(
+        today.getMonth() + 1
+      ).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`
 
-      const today = new Date().toISOString().slice(0,10)
-
-      const current = financialMonths.find(m =>
-        today >= m.start && today <= m.end
+      const current = financialMonths.find(
+        (m) => todayISO >= m.start && todayISO <= m.end
       )
 
       const start = current?.start
 
       transactions
-        .filter(t => start ? t.date >= start : true)
+        .filter((t) => (start ? t.date >= start : true))
         .forEach((t) => {
-
           if (t.type === "ENTRADA") entradasLiquido += t.value
           if (t.type === "SAÍDA") saidasLiquido += t.value
-
         })
-
-    }
-    else if (financialRange) {
-
+    } else if (financialRange) {
       transactions
-        .filter(t =>
-          t.date >= financialRange.start &&
-          t.date <= financialRange.end
+        .filter(
+          (t) =>
+            t.date >= financialRange.start &&
+            t.date <= financialRange.end
         )
         .forEach((t) => {
-
           if (t.type === "ENTRADA") entradasLiquido += t.value
           if (t.type === "SAÍDA") saidasLiquido += t.value
-
         })
-
     }
 
     const saldo = entradasPagas - saidasPagas
     const previsto = entradasPrev - saidasPrev
-
     const liquido = entradasLiquido - saidasLiquido
 
     return {
@@ -243,79 +212,69 @@ export default function Lancamentos() {
       previsto,
       liquido
     }
+  }, [
+    filteredTransactions,
+    transactions,
+    financialRange,
+    monthFilter,
+    financialMonths
+  ])
 
-    }, [filteredTransactions, transactions, financialRange, monthFilter, financialMonths])
-
-  const rangeLabel = useMemo(()=>{
-
-    if(monthFilter === "all"){
-
-      if(financialMonths.length === 0) return ""
+  const rangeLabel = useMemo(() => {
+    if (monthFilter === "all") {
+      if (financialMonths.length === 0) return ""
 
       const first = financialMonths[0].start
-      const last = financialMonths[financialMonths.length-1].end
+      const last =
+        financialMonths[financialMonths.length - 1].end
 
       return `${formatDate(first)} → ${formatDate(last)}`
     }
 
-    if(!financialRange) return ""
+    if (!financialRange) return ""
 
-    return `${formatDate(financialRange.start)} → ${formatDate(financialRange.end)}`
-
-  },[financialRange,financialMonths,monthFilter])
-
+    return `${formatDate(financialRange.start)} → ${formatDate(
+      financialRange.end
+    )}`
+  }, [financialRange, financialMonths, monthFilter])
 
   function money(v: number) {
-
     return v.toLocaleString("pt-BR", {
       style: "currency",
       currency: "BRL"
     })
-
   }
 
   function formatDate(date: string) {
-
-    const [y,m,d] = date.split("-")
+    const [y, m, d] = date.split("-")
     return `${d}/${m}/${y}`
-
   }
 
-
   return (
-
     <div className="mx-auto w-full min-w-0 max-w-[1400px] p-3 sm:p-5 lg:p-5 xl:p-8">
-
       <h1 className="mb-4 text-2xl font-semibold text-slate-800 sm:mb-6 sm:text-3xl">
         Lançamentos
       </h1>
 
-
       <div className="mb-3 flex flex-col gap-3 sm:mb-4 lg:flex-row lg:items-center lg:justify-between">
-
         <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
-
           <select
             value={monthFilter}
             onChange={(e) => setMonthFilter(e.target.value)}
             className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 sm:w-auto"
           >
-
             <option value="all">Todos</option>
             <option value="current">Mês atual</option>
 
             {financialMonths.map((m) => (
-
-              <option key={m.label} value={m.label}>
+              <option key={m.start} value={m.label}>
                 {m.label}
               </option>
-
             ))}
-
           </select>
 
-
           <button
+            type="button"
             onClick={clearFilters}
             className="
               w-full rounded-lg border border-slate-300
@@ -329,45 +288,63 @@ export default function Lancamentos() {
             Limpar filtros
           </button>
 
-
           {rangeLabel && (
-
             <span className="w-full break-words text-xs font-medium text-slate-500 sm:w-auto sm:text-sm">
               {rangeLabel}
             </span>
-
           )}
-
         </div>
 
+        <div className="grid w-full grid-cols-1 gap-2 sm:grid-cols-2 lg:w-auto">
+          <button
+            type="button"
+            onClick={() => setOpenRecurringModal(true)}
+            className="w-full rounded-lg border border-blue-600 bg-white px-4 py-2 text-sm font-medium text-blue-600 transition hover:bg-blue-50 sm:w-auto"
+          >
+            ↻ Novo recorrente
+          </button>
 
-        <button
-          onClick={() => setOpenModal(true)}
-          className="w-full rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700 sm:w-auto"
-        >
-          + Novo lançamento
-        </button>
-
+          <button
+            type="button"
+            onClick={() => setOpenModal(true)}
+            className="w-full rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700 sm:w-auto"
+          >
+            + Novo lançamento
+          </button>
+        </div>
       </div>
-
 
       <div className="mb-4 py-0 lg:sticky lg:top-0 lg:z-30 lg:py-2">
-
         <div className="mx-auto grid max-w-[1400px] grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5 lg:gap-4">
-
-          <Card title="Entradas" value={money(metrics.entradas)} positive />
-          <Card title="Saídas" value={money(metrics.saidas)} negative />
-          <Card title="Saldo atual" value={money(metrics.saldo)} dynamic={metrics.saldo} />
-          <Card title="Previsto" value={money(metrics.previsto)} dynamic={metrics.previsto} />
-          <Card title="Líquido do mês" value={money(metrics.liquido)} dynamic={metrics.liquido} />
-
+          <Card
+            title="Entradas"
+            value={money(metrics.entradas)}
+            positive
+          />
+          <Card
+            title="Saídas"
+            value={money(metrics.saidas)}
+            negative
+          />
+          <Card
+            title="Saldo atual"
+            value={money(metrics.saldo)}
+            dynamic={metrics.saldo}
+          />
+          <Card
+            title="Previsto"
+            value={money(metrics.previsto)}
+            dynamic={metrics.previsto}
+          />
+          <Card
+            title="Líquido do mês"
+            value={money(metrics.liquido)}
+            dynamic={metrics.liquido}
+          />
         </div>
-
       </div>
 
-
       <TransactionsTable transactions={filteredTransactions} />
-
 
       <NewTransactionModal
         open={openModal}
@@ -375,14 +352,28 @@ export default function Lancamentos() {
         financialMonths={financialMonths}
       />
 
+      <NewRecurringTransactionModal
+        open={openRecurringModal}
+        onClose={() => setOpenRecurringModal(false)}
+        financialMonths={financialMonths}
+      />
     </div>
-
   )
-
 }
 
-
-function Card({ title, value, positive, negative, dynamic }: any) {
+function Card({
+  title,
+  value,
+  positive,
+  negative,
+  dynamic
+}: {
+  title: string
+  value: string
+  positive?: boolean
+  negative?: boolean
+  dynamic?: number
+}) {
   let color = "text-slate-800"
 
   if (positive) color = "text-green-600"
@@ -400,7 +391,7 @@ function Card({ title, value, positive, negative, dynamic }: any) {
       </p>
 
       <p
-        className={`mt-1 whitespace-nowrap font-semibold leading-tight tabular-nums text-lg sm:text-xl lg:text-base xl:text-xl ${color}`}
+        className={`mt-1 whitespace-nowrap text-lg font-semibold leading-tight tabular-nums sm:text-xl lg:text-base xl:text-xl ${color}`}
       >
         {value}
       </p>

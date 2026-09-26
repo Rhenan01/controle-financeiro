@@ -1,49 +1,39 @@
 "use client"
-
 import { useEffect, useState } from "react"
 import { supabase } from "@/lib/supabase"
 import { CreditCard, Pencil, Trash2, X } from "lucide-react"
-
 export default function CardsTable() {
   const [cards, setCards] = useState<any[]>([])
   const [modalOpen, setModalOpen] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
-
   const [nome, setNome] = useState("")
   const [fecha, setFecha] = useState("")
   const [vence, setVence] = useState("")
   const [limite, setLimite] = useState("")
   const [color, setColor] = useState("#334155")
-
   async function loadCards() {
     const { data } = await supabase
       .from("cards")
       .select("*")
       .order("name")
-
     if (data) {
       setCards(data)
     }
   }
-
   useEffect(() => {
     loadCards()
   }, [])
-
   useEffect(() => {
     function handleEsc(e: KeyboardEvent) {
       if (e.key === "Escape") {
         setModalOpen(false)
       }
     }
-
     window.addEventListener("keydown", handleEsc)
-
     return () => {
       window.removeEventListener("keydown", handleEsc)
     }
   }, [])
-
   function openNew() {
     setNome("")
     setFecha("")
@@ -53,7 +43,6 @@ export default function CardsTable() {
     setEditingId(null)
     setModalOpen(true)
   }
-
   function openEdit(card: any) {
     setNome(card.name)
     setFecha(String(card.closing_day))
@@ -63,15 +52,11 @@ export default function CardsTable() {
     setEditingId(card.id)
     setModalOpen(true)
   }
-
   async function save() {
     if (!nome) return
-
     const { data: userData } = await supabase.auth.getUser()
     const user = userData.user
-
     if (!user) return
-
     if (editingId) {
       await supabase
         .from("cards")
@@ -95,20 +80,16 @@ export default function CardsTable() {
           color
         })
     }
-
     await loadCards()
     setModalOpen(false)
   }
-
   async function remove(id: string) {
     await supabase
       .from("cards")
       .delete()
       .eq("id", id)
-
     await loadCards()
   }
-
   function money(value: number) {
     return Number(value).toLocaleString("pt-BR", {
       style: "currency",
@@ -117,7 +98,6 @@ export default function CardsTable() {
       maximumFractionDigits: 2
     })
   }
-
   return (
     <div className="min-w-0 overflow-hidden rounded-xl border border-gray-200 bg-white shadow">
       <div className="flex items-center justify-between gap-3 border-b p-3 sm:p-4">
@@ -129,7 +109,6 @@ export default function CardsTable() {
             {cards.length} {cards.length === 1 ? "cartão" : "cartões"}
           </span>
         </div>
-
         <button
           type="button"
           onClick={openNew}
@@ -138,7 +117,6 @@ export default function CardsTable() {
           + Novo
         </button>
       </div>
-
       {/* Celular */}
       <div className="space-y-2 p-3 md:hidden">
         {cards.map((c) => (
@@ -150,7 +128,6 @@ export default function CardsTable() {
               className="absolute inset-x-0 top-0 h-[3px]"
               style={{ backgroundColor: c.color ?? "#334155" }}
             />
-
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0 flex-1">
                 <div className="flex min-w-0 items-center gap-2">
@@ -158,7 +135,6 @@ export default function CardsTable() {
                     className="h-3 w-3 shrink-0 rounded-full"
                     style={{ backgroundColor: c.color ?? "#334155" }}
                   />
-
                   <span
                     className="truncate text-sm font-semibold"
                     style={{ color: c.color ?? "#334155" }}
@@ -166,7 +142,6 @@ export default function CardsTable() {
                     {c.name}
                   </span>
                 </div>
-
                 <div className="mt-3 grid grid-cols-2 gap-x-3 gap-y-2 text-xs">
                   <div>
                     <span className="block text-slate-400">Fecha dia</span>
@@ -174,14 +149,12 @@ export default function CardsTable() {
                       {c.closing_day}
                     </span>
                   </div>
-
                   <div>
                     <span className="block text-slate-400">Vence dia</span>
                     <span className="mt-0.5 block font-medium text-slate-700">
                       {c.due_day}
                     </span>
                   </div>
-
                   <div className="col-span-2">
                     <span className="block text-slate-400">Limite</span>
                     <span className="mt-0.5 block font-semibold text-slate-800">
@@ -190,7 +163,6 @@ export default function CardsTable() {
                   </div>
                 </div>
               </div>
-
               <div className="flex shrink-0 items-center gap-1">
                 <button
                   type="button"
@@ -201,7 +173,6 @@ export default function CardsTable() {
                 >
                   <Pencil size={16} />
                 </button>
-
                 <button
                   type="button"
                   onClick={() => remove(c.id)}
@@ -215,14 +186,12 @@ export default function CardsTable() {
             </div>
           </div>
         ))}
-
         {cards.length === 0 && (
           <div className="py-8 text-center text-sm text-slate-500">
             Nenhum cartão cadastrado.
           </div>
         )}
       </div>
-
       {/* Tablet/Desktop */}
       <div className="hidden overflow-x-auto md:block">
         <table className="w-full min-w-[760px] text-sm">
@@ -236,7 +205,6 @@ export default function CardsTable() {
               <th className="w-[100px] px-4 py-3 text-right">Ações</th>
             </tr>
           </thead>
-
           <tbody>
             {cards.map((c) => (
               <tr key={c.id} className="border-t transition hover:bg-gray-50">
@@ -246,26 +214,21 @@ export default function CardsTable() {
                     style={{ backgroundColor: c.color ?? "#334155" }}
                   />
                 </td>
-
                 <td
                   className="px-4 py-3 font-medium"
                   style={{ color: c.color ?? "#334155" }}
                 >
                   {c.name}
                 </td>
-
                 <td className="px-4 py-3 text-slate-700">
                   {c.closing_day}
                 </td>
-
                 <td className="px-4 py-3 text-slate-700">
                   {c.due_day}
                 </td>
-
                 <td className="whitespace-nowrap px-4 py-3 text-slate-700">
                   {money(c.limit_value)}
                 </td>
-
                 <td className="px-4 py-3 text-right">
                   <div className="flex justify-end gap-2">
                     <button
@@ -276,7 +239,6 @@ export default function CardsTable() {
                     >
                       <Pencil size={16} />
                     </button>
-
                     <button
                       type="button"
                       onClick={() => remove(c.id)}
@@ -292,13 +254,16 @@ export default function CardsTable() {
           </tbody>
         </table>
       </div>
-
       {modalOpen && (
         <div
           className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 p-3 sm:p-4"
           onClick={() => setModalOpen(false)}
         >
-          <div
+          <form
+            onSubmit={(event) => {
+              event.preventDefault()
+              void save()
+            }}
             className="max-h-[calc(100dvh-24px)] w-full max-w-[420px] overflow-y-auto rounded-2xl bg-white p-4 shadow-2xl sm:p-6"
             onClick={(e) => e.stopPropagation()}
           >
@@ -309,7 +274,6 @@ export default function CardsTable() {
                   {editingId ? "Editar cartão" : "Novo cartão"}
                 </h3>
               </div>
-
               <button
                 type="button"
                 onClick={() => setModalOpen(false)}
@@ -319,7 +283,6 @@ export default function CardsTable() {
                 <X size={17} />
               </button>
             </div>
-
             <div className="space-y-4">
               <label className="block space-y-1">
                 <span className="text-xs font-medium text-slate-600">Nome do cartão</span>
@@ -330,7 +293,6 @@ export default function CardsTable() {
                   className="w-full rounded-lg border border-gray-300 p-2.5 text-sm text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
                 />
               </label>
-
               <div className="grid grid-cols-2 gap-3">
                 <label className="block min-w-0 space-y-1">
                   <span className="text-xs font-medium text-slate-600">Fecha dia</span>
@@ -344,7 +306,6 @@ export default function CardsTable() {
                     className="w-full min-w-0 rounded-lg border border-gray-300 p-2.5 text-sm text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
                   />
                 </label>
-
                 <label className="block min-w-0 space-y-1">
                   <span className="text-xs font-medium text-slate-600">Vence dia</span>
                   <input
@@ -358,7 +319,6 @@ export default function CardsTable() {
                   />
                 </label>
               </div>
-
               <label className="block space-y-1">
                 <span className="text-xs font-medium text-slate-600">Limite</span>
                 <input
@@ -371,7 +331,6 @@ export default function CardsTable() {
                   className="w-full rounded-lg border border-gray-300 p-2.5 text-sm text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
                 />
               </label>
-
               <label className="block space-y-1">
                 <span className="text-xs font-medium text-slate-600">Cor do cartão</span>
                 <div className="flex items-center gap-3 rounded-lg border border-slate-200 p-2">
@@ -387,7 +346,6 @@ export default function CardsTable() {
                 </div>
               </label>
             </div>
-
             <div className="mt-6 grid grid-cols-2 gap-2 sm:flex sm:justify-end">
               <button
                 type="button"
@@ -396,16 +354,14 @@ export default function CardsTable() {
               >
                 Cancelar
               </button>
-
               <button
-                type="button"
-                onClick={save}
+                type="submit"
                 className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700"
               >
                 Salvar
               </button>
             </div>
-          </div>
+          </form>
         </div>
       )}
     </div>
