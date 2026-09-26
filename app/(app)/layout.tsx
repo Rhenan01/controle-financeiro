@@ -1,4 +1,5 @@
 import Sidebar from "@/components/Sidebar"
+import { RequireAuth } from "@/components/auth/RequireAuth"
 
 export default function AppLayout({
   children,
@@ -6,12 +7,14 @@ export default function AppLayout({
   children: React.ReactNode
 }) {
   return (
-    <div className="min-h-dvh bg-gradient-to-br from-slate-50 to-slate-200 lg:flex lg:h-screen">
-      <Sidebar />
+    <RequireAuth>
+      <div className="min-h-dvh bg-gradient-to-br from-slate-50 to-slate-200 lg:flex lg:h-screen">
+        <Sidebar />
 
-      <main className="min-w-0 flex-1 overflow-y-auto pb-24 lg:pb-0">
-        {children}
-      </main>
-    </div>
+        <main className="min-w-0 flex-1 overflow-y-auto pb-24 lg:pb-0">
+          {children}
+        </main>
+      </div>
+    </RequireAuth>
   )
 }

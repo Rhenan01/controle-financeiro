@@ -17,12 +17,9 @@ import {
   useRouter
 } from "next/navigation"
 
-import {
-  useEffect,
-  useState
-} from "react"
+import { useEffect } from "react"
 
-import { supabase } from "@/lib/supabase"
+import { useAuth } from "@/components/auth/AuthProvider"
 
 
 type MenuItem = {
@@ -38,31 +35,17 @@ export default function Sidebar() {
   const pathname = usePathname()
   const router = useRouter()
 
-  const [mounted, setMounted] = useState(false)
-  const [user, setUser] = useState<any>(null)
+  const { state, signOut } = useAuth()
+  const user = state.user
 
 
   useEffect(() => {
-
-    setMounted(true)
 
     router.prefetch("/dashboard")
     router.prefetch("/lancamentos")
     router.prefetch("/recorrencias")
     router.prefetch("/configuracoes")
 
-
-    async function loadUser() {
-
-      const { data } =
-        await supabase.auth.getUser()
-
-      setUser(data.user)
-
-    }
-
-
-    loadUser()
 
   }, [router])
 
@@ -75,16 +58,10 @@ export default function Sidebar() {
 
   async function handleLogout() {
 
-    await supabase.auth.signOut()
-
-    router.push("/")
+    if (await signOut()) router.replace("/")
 
   }
 
-
-  if (!mounted) {
-    return null
-  }
 
 
   const menu: MenuItem[] = [

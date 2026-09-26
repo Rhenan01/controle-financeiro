@@ -27,6 +27,10 @@ export type Transaction = {
 }
 
 type FinanceState = {
+  sessionUserId: string | null
+  sessionVersion: number
+  setSessionUser: (userId: string | null) => void
+
   transactions: Transaction[]
 
   selectedCategory: string | null
@@ -123,7 +127,22 @@ function normalizeTransactions(
 }
 
 export const useFinanceStore =
-  create<FinanceState>((set) => ({
+  create<FinanceState>((set, get) => ({
+    sessionUserId: null,
+    sessionVersion: 0,
+
+    setSessionUser: (userId) => {
+      if (userId !== null && get().sessionUserId === userId) return
+
+      set((state) => ({
+        sessionUserId: userId,
+        sessionVersion: state.sessionVersion + 1,
+        transactions: [],
+        selectedCategory: null,
+        selectedFinancialYear: new Date().getFullYear()
+      }))
+    },
+
     transactions: [],
 
     selectedCategory: null,
@@ -148,6 +167,8 @@ export const useFinanceStore =
     loadTransactions: async (
       userId
     ) => {
+      if (get().sessionUserId !== userId) return
+      const version = get().sessionVersion
       const pageSize = 1000
 
       let from = 0
@@ -181,6 +202,9 @@ export const useFinanceStore =
               from,
               from + pageSize - 1
             )
+
+        // Uma resposta da sessão anterior nunca deve repopular o estado.
+        if (get().sessionVersion !== version) return
 
         if (error) {
           console.error(
@@ -229,6 +253,8 @@ export const useFinanceStore =
       transaction,
       userId
     ) => {
+      if (get().sessionUserId !== userId) return
+      const version = get().sessionVersion
       const { data, error } =
         await supabase
           .from("transactions")
@@ -239,6 +265,8 @@ export const useFinanceStore =
             }
           ])
           .select()
+
+      if (get().sessionVersion !== version) return
 
       if (error) {
         console.error(
@@ -271,6 +299,8 @@ export const useFinanceStore =
       id,
       updatedTransaction
     ) => {
+      const { sessionUserId, sessionVersion } = get()
+      if (!sessionUserId) return
       const { error } =
         await supabase
           .from("transactions")
@@ -278,6 +308,9 @@ export const useFinanceStore =
             updatedTransaction
           )
           .eq("id", id)
+          .eq("user_id", sessionUserId)
+
+      if (get().sessionVersion !== sessionVersion) return
 
       if (error) {
         console.error(
@@ -308,11 +341,16 @@ export const useFinanceStore =
     deleteTransaction: async (
       id
     ) => {
+      const { sessionUserId, sessionVersion } = get()
+      if (!sessionUserId) return
       const { error } =
         await supabase
           .from("transactions")
           .delete()
           .eq("id", id)
+          .eq("user_id", sessionUserId)
+
+      if (get().sessionVersion !== sessionVersion) return
 
       if (error) {
         console.error(
