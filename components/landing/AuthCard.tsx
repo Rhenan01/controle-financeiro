@@ -150,12 +150,6 @@ export function AuthCard({
       "loading"
     )
 
-    /*
-     * Mantém o comportamento de
-     * autenticação utilizado no projeto.
-     */
-    await supabase.auth.signOut()
-
     if (mode === "login") {
       const {
         error: loginError,
