@@ -25,9 +25,12 @@ import { supabase } from "@/lib/supabase"
 
 import type { MascotState } from "./FinanceMascot"
 
+
 type AuthMode =
   | "login"
   | "signup"
+  | "forgot"
+
 
 function translateAuthError(message: string) {
   const normalizedMessage =
@@ -84,11 +87,13 @@ function translateAuthError(message: string) {
   return "Não foi possível realizar a autenticação. Tente novamente."
 }
 
+
 type AuthCardProps = {
   onMascotStateChange: (
     state: MascotState
   ) => void
 }
+
 
 export function AuthCard({
   onMascotStateChange,
@@ -115,6 +120,19 @@ export function AuthCard({
   const [error, setError] =
     useState("")
 
+  const [success, setSuccess] =
+    useState("")
+
+
+  const isSubmitDisabled =
+    loading ||
+    !email ||
+    (
+      mode !== "forgot" &&
+      !password
+    )
+
+
   function changeMode(
     nextMode: AuthMode
   ) {
@@ -125,10 +143,12 @@ export function AuthCard({
     setEmail("")
     setPassword("")
     setError("")
+    setSuccess("")
     setShowPassword(false)
 
     onMascotStateChange("idle")
   }
+
 
   async function handleAuth(
     event: FormEvent<HTMLFormElement>
@@ -137,7 +157,10 @@ export function AuthCard({
 
     if (
       !email ||
-      !password ||
+      (
+        mode !== "forgot" &&
+        !password
+      ) ||
       loading
     ) {
       return
@@ -145,11 +168,77 @@ export function AuthCard({
 
     setLoading(true)
     setError("")
+    setSuccess("")
 
     onMascotStateChange(
       "loading"
     )
 
+
+    /*
+     * Recuperação de senha.
+     *
+     * O Supabase enviará um e-mail
+     * contendo o link de recuperação.
+     *
+     * Depois do clique, o usuário será
+     * redirecionado para:
+     *
+     * /reset-password
+     */
+    if (mode === "forgot") {
+      const {
+        error: resetError,
+      } =
+        await supabase.auth.resetPasswordForEmail(
+          email,
+          {
+            redirectTo:
+              `${window.location.origin}/reset-password`,
+          }
+        )
+
+      if (resetError) {
+        setError(
+          translateAuthError(
+            resetError.message
+          )
+        )
+
+        setLoading(false)
+
+        onMascotStateChange(
+          "error"
+        )
+
+        return
+      }
+
+      /*
+       * A mensagem é propositalmente
+       * genérica.
+       *
+       * Assim não informamos publicamente
+       * se determinado e-mail possui ou
+       * não uma conta cadastrada.
+       */
+      setSuccess(
+        "Se existir uma conta com este e-mail, enviaremos um link para redefinir sua senha."
+      )
+
+      setLoading(false)
+
+      onMascotStateChange(
+        "success"
+      )
+
+      return
+    }
+
+
+    /*
+     * Login.
+     */
     if (mode === "login") {
       const {
         error: loginError,
@@ -192,6 +281,10 @@ export function AuthCard({
       return
     }
 
+
+    /*
+     * Cadastro.
+     */
     const {
       error: signupError,
     } =
@@ -208,6 +301,7 @@ export function AuthCard({
           signupError.message
         )
       )
+
       setLoading(false)
 
       onMascotStateChange(
@@ -229,6 +323,7 @@ export function AuthCard({
       router.refresh()
     }, 650)
   }
+
 
   return (
     <motion.div
@@ -276,6 +371,7 @@ export function AuthCard({
         "
       />
 
+
       <div className="relative p-6">
         <AnimatePresence mode="wait">
           <motion.div
@@ -306,11 +402,13 @@ export function AuthCard({
                   text-white
                 "
               >
-                {mode ===
-                "login"
+                {mode === "login"
                   ? "Bem-vindo de volta"
-                  : "Crie sua conta"}
+                  : mode === "signup"
+                    ? "Crie sua conta"
+                    : "Recuperar senha"}
               </h2>
+
 
               <p
                 className="
@@ -319,12 +417,14 @@ export function AuthCard({
                   text-slate-400
                 "
               >
-                {mode ===
-                "login"
+                {mode === "login"
                   ? "Faça login para continuar."
-                  : "Comece a organizar suas finanças."}
+                  : mode === "signup"
+                    ? "Comece a organizar suas finanças."
+                    : "Informe seu e-mail para receber o link de recuperação."}
               </p>
             </div>
+
 
             <form
               onSubmit={
@@ -347,6 +447,7 @@ export function AuthCard({
                   E-mail
                 </label>
 
+
                 <div className="group relative">
                   <Mail
                     className="
@@ -361,6 +462,7 @@ export function AuthCard({
                       group-focus-within:text-indigo-400
                     "
                   />
+
 
                   <input
                     id="email"
@@ -405,6 +507,10 @@ export function AuthCard({
                       if (error) {
                         setError("")
                       }
+
+                      if (success) {
+                        setSuccess("")
+                      }
                     }}
                     className="
                       h-[48px]
@@ -430,169 +536,204 @@ export function AuthCard({
                 </div>
               </div>
 
+
               {/* Senha */}
-              <div>
-                <label
-                  htmlFor="password"
-                  className="
-                    mb-1.5
-                    block
-                    text-xs
-                    font-medium
-                    text-slate-300
-                  "
-                >
-                  Senha
-                </label>
-
-                <div className="group relative">
-                  <LockKeyhole
+              {mode !== "forgot" && (
+                <div>
+                  <label
+                    htmlFor="password"
                     className="
-                      absolute
-                      left-4
-                      top-1/2
-                      h-4
-                      w-4
-                      -translate-y-1/2
-                      text-slate-500
-                      transition
-                      group-focus-within:text-indigo-400
-                    "
-                  />
-
-                  <input
-                    id="password"
-                    type={
-                      showPassword
-                        ? "text"
-                        : "password"
-                    }
-                    autoComplete={
-                      mode ===
-                      "login"
-                        ? "current-password"
-                        : "new-password"
-                    }
-                    placeholder="••••••••"
-                    value={
-                      password
-                    }
-                    onFocus={() => {
-                      onMascotStateChange(
-                        showPassword
-                          ? "passwordPeek"
-                          : "password"
-                      )
-                    }}
-                    onBlur={() => {
-                      if (!loading) {
-                        onMascotStateChange(
-                          "idle"
-                        )
-                      }
-                    }}
-                    onChange={(
-                      event
-                    ) => {
-                      setPassword(
-                        event.target
-                          .value
-                      )
-
-                      /*
-                       * Enquanto digita,
-                       * mantém o estado
-                       * correspondente à
-                       * visibilidade da senha.
-                       */
-                      onMascotStateChange(
-                        showPassword
-                          ? "passwordPeek"
-                          : "password"
-                      )
-
-                      if (error) {
-                        setError("")
-                      }
-                    }}
-                    className="
-                      h-[48px]
-                      w-full
-                      rounded-[13px]
-                      border
-                      border-white/10
-                      bg-white/[0.035]
-                      pl-11
-                      pr-11
-                      text-sm
-                      text-white
-                      outline-none
-                      transition-all
-                      placeholder:text-slate-600
-                      hover:border-white/20
-                      focus:border-indigo-500/70
-                      focus:bg-indigo-500/[0.04]
-                      focus:ring-4
-                      focus:ring-indigo-500/[0.08]
-                    "
-                  />
-
-                  {/* Mostrar / ocultar senha */}
-                  <button
-                    type="button"
-                    onMouseDown={(
-                      event
-                    ) => {
-                      /*
-                       * O campo não perde
-                       * foco ao clicar no olho.
-                       */
-                      event.preventDefault()
-                    }}
-                    onClick={() => {
-                      const next =
-                        !showPassword
-
-                      setShowPassword(
-                        next
-                      )
-
-                      /*
-                       * Mostrar:
-                       * Fin bisóia.
-                       *
-                       * Ocultar:
-                       * Fin cobre os olhos.
-                       */
-                      onMascotStateChange(
-                        next
-                          ? "passwordPeek"
-                          : "password"
-                      )
-                    }}
-                    aria-label={
-                      showPassword
-                        ? "Ocultar senha"
-                        : "Mostrar senha"
-                    }
-                    className="
-                      absolute
-                      right-4
-                      top-1/2
-                      -translate-y-1/2
-                      text-slate-500
-                      transition
-                      hover:text-slate-300
+                      mb-1.5
+                      block
+                      text-xs
+                      font-medium
+                      text-slate-300
                     "
                   >
-                    {showPassword ? (
-                      <EyeOff className="h-4 w-4" />
-                    ) : (
-                      <Eye className="h-4 w-4" />
-                    )}
+                    Senha
+                  </label>
+
+
+                  <div className="group relative">
+                    <LockKeyhole
+                      className="
+                        absolute
+                        left-4
+                        top-1/2
+                        h-4
+                        w-4
+                        -translate-y-1/2
+                        text-slate-500
+                        transition
+                        group-focus-within:text-indigo-400
+                      "
+                    />
+
+
+                    <input
+                      id="password"
+                      type={
+                        showPassword
+                          ? "text"
+                          : "password"
+                      }
+                      autoComplete={
+                        mode ===
+                        "login"
+                          ? "current-password"
+                          : "new-password"
+                      }
+                      placeholder="••••••••"
+                      value={
+                        password
+                      }
+                      onFocus={() => {
+                        onMascotStateChange(
+                          showPassword
+                            ? "passwordPeek"
+                            : "password"
+                        )
+                      }}
+                      onBlur={() => {
+                        if (!loading) {
+                          onMascotStateChange(
+                            "idle"
+                          )
+                        }
+                      }}
+                      onChange={(
+                        event
+                      ) => {
+                        setPassword(
+                          event.target
+                            .value
+                        )
+
+                        /*
+                         * Enquanto digita,
+                         * mantém o estado
+                         * correspondente à
+                         * visibilidade da senha.
+                         */
+                        onMascotStateChange(
+                          showPassword
+                            ? "passwordPeek"
+                            : "password"
+                        )
+
+                        if (error) {
+                          setError("")
+                        }
+
+                        if (success) {
+                          setSuccess("")
+                        }
+                      }}
+                      className="
+                        h-[48px]
+                        w-full
+                        rounded-[13px]
+                        border
+                        border-white/10
+                        bg-white/[0.035]
+                        pl-11
+                        pr-11
+                        text-sm
+                        text-white
+                        outline-none
+                        transition-all
+                        placeholder:text-slate-600
+                        hover:border-white/20
+                        focus:border-indigo-500/70
+                        focus:bg-indigo-500/[0.04]
+                        focus:ring-4
+                        focus:ring-indigo-500/[0.08]
+                      "
+                    />
+
+
+                    {/* Mostrar / ocultar senha */}
+                    <button
+                      type="button"
+                      onMouseDown={(
+                        event
+                      ) => {
+                        /*
+                         * O campo não perde
+                         * foco ao clicar no olho.
+                         */
+                        event.preventDefault()
+                      }}
+                      onClick={() => {
+                        const next =
+                          !showPassword
+
+                        setShowPassword(
+                          next
+                        )
+
+                        /*
+                         * Mostrar:
+                         * Fin bisóia.
+                         *
+                         * Ocultar:
+                         * Fin cobre os olhos.
+                         */
+                        onMascotStateChange(
+                          next
+                            ? "passwordPeek"
+                            : "password"
+                        )
+                      }}
+                      aria-label={
+                        showPassword
+                          ? "Ocultar senha"
+                          : "Mostrar senha"
+                      }
+                      className="
+                        absolute
+                        right-4
+                        top-1/2
+                        -translate-y-1/2
+                        text-slate-500
+                        transition
+                        hover:text-slate-300
+                      "
+                    >
+                      {showPassword ? (
+                        <EyeOff className="h-4 w-4" />
+                      ) : (
+                        <Eye className="h-4 w-4" />
+                      )}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+
+              {/* Esqueceu a senha */}
+              {mode === "login" && (
+                <div className="text-right">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      changeMode(
+                        "forgot"
+                      )
+                    }}
+                    className="
+                      text-xs
+                      font-medium
+                      text-indigo-400
+                      transition
+                      hover:text-indigo-300
+                    "
+                  >
+                    Esqueceu sua senha?
                   </button>
                 </div>
-              </div>
+              )}
+
 
               {/* Erro */}
               <AnimatePresence>
@@ -628,27 +769,57 @@ export function AuthCard({
                 )}
               </AnimatePresence>
 
-              {/* Entrar */}
+
+              {/* Sucesso */}
+              <AnimatePresence>
+                {success && (
+                  <motion.div
+                    initial={{
+                      opacity: 0,
+                      height: 0,
+                    }}
+                    animate={{
+                      opacity: 1,
+                      height:
+                        "auto",
+                    }}
+                    exit={{
+                      opacity: 0,
+                      height: 0,
+                    }}
+                    className="
+                      overflow-hidden
+                      rounded-xl
+                      border
+                      border-emerald-500/20
+                      bg-emerald-500/[0.07]
+                      px-3.5
+                      py-2.5
+                      text-xs
+                      text-emerald-300
+                    "
+                  >
+                    {success}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+
+              {/* Botão principal */}
               <motion.button
                 type="submit"
                 disabled={
-                  loading ||
-                  !email ||
-                  !password
+                  isSubmitDisabled
                 }
                 whileHover={
-                  loading ||
-                  !email ||
-                  !password
+                  isSubmitDisabled
                     ? undefined
                     : {
                         y: -2,
                       }
                 }
                 whileTap={
-                  loading ||
-                  !email ||
-                  !password
+                  isSubmitDisabled
                     ? undefined
                     : {
                         scale:
@@ -692,10 +863,11 @@ export function AuthCard({
                   </>
                 ) : (
                   <>
-                    {mode ===
-                    "login"
+                    {mode === "login"
                       ? "Entrar"
-                      : "Criar conta"}
+                      : mode === "signup"
+                        ? "Criar conta"
+                        : "Enviar link"}
 
                     <ArrowRight
                       className="
@@ -710,7 +882,8 @@ export function AuthCard({
               </motion.button>
             </form>
 
-            {/* Login / cadastro */}
+
+            {/* Navegação entre login, cadastro e recuperação */}
             <div
               className="
                 mt-5
@@ -722,8 +895,7 @@ export function AuthCard({
                 text-slate-500
               "
             >
-              {mode ===
-              "login" ? (
+              {mode === "login" ? (
                 <>
                   Ainda não tem
                   uma conta?{" "}
@@ -745,7 +917,7 @@ export function AuthCard({
                     Criar conta
                   </button>
                 </>
-              ) : (
+              ) : mode === "signup" ? (
                 <>
                   Já tem uma
                   conta?{" "}
@@ -765,6 +937,27 @@ export function AuthCard({
                     "
                   >
                     Fazer login
+                  </button>
+                </>
+              ) : (
+                <>
+                  Lembrou sua senha?{" "}
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      changeMode(
+                        "login"
+                      )
+                    }}
+                    className="
+                      font-medium
+                      text-indigo-400
+                      transition
+                      hover:text-indigo-300
+                    "
+                  >
+                    Voltar para o login
                   </button>
                 </>
               )}
